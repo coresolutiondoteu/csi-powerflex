@@ -1329,12 +1329,6 @@ func (f *feature) iCallValidateVolumeHostConnectivity() error {
 	return nil
 }
 
-func (f *feature) iRemoveAVolumeFromVolumeGroupSnapshotRequest() error {
-	//cut last volume off of list
-	f.volIDList = f.volIDList[0 : len(f.volIDList)-1]
-	return nil
-}
-
 func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 	ctx := context.Background()
 	vgsClient := volGroupSnap.NewVolumeGroupSnapshotClient(grpcClient)
@@ -1356,45 +1350,6 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 		f.VolumeGroupSnapshot = group
 	}
 	return nil
-}
-
-//takes f.VolumeGroupSnapshot (assumes length >=2 ), and splits its snapshots into
-//two VolumeGroupSnapshots, f.volumeGroupSnapshot and  f.volumeGroupSnapshot2
-func (f *feature) iCallSplitVolumeGroupSnapshot() error {
-	if f.VolumeGroupSnapshot == nil {
-		fmt.Printf("No VolumeGroupSnapshot to split.\n")
-		return nil
-	}
-	ctx := context.Background()
-	vgsClient := volGroupSnap.NewVolumeGroupSnapshotClient(grpcClient)
-	snapList := f.VolumeGroupSnapshot.Snapshots
-
-	//delete first snap from VGS, and save corresponding VGS as f.volumeGroupSnapshot2
-	f.VolumeGroupSnapshot.Snapshots = snapList[0:1]
-	fmt.Printf("Snapshots in VGS to be deleted are: %v \n", f.VolumeGroupSnapshot.Snapshots)
-	f.iCallDeleteVGS()
-	f.VolumeGroupSnapshot.Snapshots = snapList[1:]
-	f.VolumeGroupSnapshot2 = f.VolumeGroupSnapshot
-
-	//adjust f.volIDList to only contain the first, unsnapped volume, and create another VGS for it. Save this one as  f.volumeGroupSnapshot
-	f.volIDListShort = f.volIDList[0:1]
-	req := &volGroupSnap.CreateVolumeGroupSnapshotRequest{
-		Name:            "apple",
-		SourceVolumeIDs: f.volIDListShort,
-	}
-	group, err := vgsClient.CreateVolumeGroupSnapshot(ctx, req)
-	if err != nil {
-		f.addError(err)
-	}
-	if group != nil {
-		f.VolumeGroupSnapshot = group
-	}
-
-	fmt.Printf("group 1 is: %v \n", f.VolumeGroupSnapshot)
-	fmt.Printf("group 2 is: %v \n", f.VolumeGroupSnapshot2)
-
-	return nil
-
 }
 
 func (f *feature) iCallDeleteVGS() error {
@@ -1774,8 +1729,6 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call CloneManyVolumes$`, f.iCallCloneManyVolumes)
 	s.Step(`^I call EthemeralNodePublishVolume with ID "([^"]*)" and size "([^"]*)"$`, f.iCallEthemeralNodePublishVolume)
 	s.Step(`^I call DeleteVGS$`, f.iCallDeleteVGS)
-	s.Step(`^remove a volume from VolumeGroupSnapshotRequest$`, f.iRemoveAVolumeFromVolumeGroupSnapshotRequest)
-	s.Step(`^I call split VolumeGroupSnapshot$`, f.iCallSplitVolumeGroupSnapshot)
 	s.Step(`^I call ControllerGetVolume$`, f.iCallControllerGetVolume)
 	s.Step(`^the volumecondition is "([^"]*)"$`, f.theVolumeconditionIs)
 	s.Step(`^I call NodeGetVolumeStats$`, f.iCallNodeGetVolumeStats)

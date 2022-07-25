@@ -534,69 +534,6 @@ Scenario: Call CreateVolumeGroupSnapshot
   And when I call DeleteAllVolumes
   Then the error message should contain "none"
 
-Scenario: Call CreateVolumeGroupSnapshot idempotent 
-  Given a VxFlexOS service
-  And a basic block volume request "integration1" "8"
-  When I call CreateVolume
-  And a basic block volume request "integration2" "8"
-  And I call CreateVolume
-  And a basic block volume request "integration3" "8"
-  And I call CreateVolume
-  When I call CreateVolumeGroupSnapshot
-  When I call CreateVolumeGroupSnapshot
-  And I call DeleteVGS
-  And when I call DeleteAllVolumes
-  Then the error message should contain "none"
-
-@vg
-Scenario: Call CreateVolumeGroupSnapshot idempotent; criteria 1 fails
-  Given a VxFlexOS service
-  And a basic block volume request "integration1" "8"
-  When I call CreateVolume
-  And a basic block volume request "integration2" "8"
-  And I call CreateVolume
-  And a basic block volume request "integration3" "8"
-  And I call CreateVolume
-  When I call CreateVolumeGroupSnapshot
-  And a basic block volume request "integration4" "8"
-  And I call CreateVolume
-  When I call CreateVolumeGroupSnapshot
-  And I call DeleteVGS
-  And when I call DeleteAllVolumes
-  Then the error message should contain "Some snapshots exist on array, while others need to be created"
-
-#X_CSI_VXFLEXOS_ENABLESNAPSHOTCGDELETE must be set to "false" in env.sh for this test
-#Scenario: Call CreateVolumeGroupSnapshot idempotent; criteria 2 fails
-# Given a VxFlexOS service
-#  And a basic block volume request "integration1" "8"
-#  When I call CreateVolume
-# And a basic block volume request "integration2" "8"
-# And I call CreateVolume
-#  And a basic block volume request "integration3" "8"
-#  And I call CreateVolume
-#  When I call CreateVolumeGroupSnapshot
-#  And I call split VolumeGroupSnapshot
-#  When I call CreateVolumeGroupSnapshot
-#  And I call DeleteVGS
-#  And when I call DeleteAllVolumes
-#  Then the error message should contain "Idempotent snapshots belong to different consistency groups on array"
-
-@vg
-Scenario: Call CreateVolumeGroupSnapshot idempotent; criteria 3 fails
-  Given a VxFlexOS service
-  And a basic block volume request "integration1" "8"
-  When I call CreateVolume
-  And a basic block volume request "integration2" "8"
-  And I call CreateVolume
-  And a basic block volume request "integration3" "8"
-  And I call CreateVolume
-  When I call CreateVolumeGroupSnapshot
-  And remove a volume from VolumeGroupSnapshotRequest 
-  When I call CreateVolumeGroupSnapshot
-  And I call DeleteVGS
-  And when I call DeleteAllVolumes
-  Then the error message should contain "contains more snapshots"
-
 Scenario: Call ControllerGetVolume with Good VolumeID
   Given a VxFlexOS service
   And a capability with voltype "mount" access "single-writer" fstype "ext4"

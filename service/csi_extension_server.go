@@ -136,16 +136,6 @@ func (s *service) CreateVolumeGroupSnapshot(ctx context.Context, req *volumeGrou
 
 	snapParam := &siotypes.SnapshotVolumesParam{SnapshotDefs: snapshotDefs}
 
-	//check if req is Idempotent, return group found if yes
-	existingGroup, err := s.checkIdempotency(ctx, snapParam, systemID, req.Parameters[ExistingGroupID])
-	if err != nil {
-		return nil, err
-	}
-	if existingGroup != nil {
-		return existingGroup, nil
-	}
-
-	// Create snapshot(s), Idempotent requests will already be returned before this is called
 	snapResponse, err := s.systems[systemID].CreateSnapshotConsistencyGroup(snapParam)
 	if err != nil {
 		var snapsThatFailed []string
@@ -267,120 +257,6 @@ func (s *service) buildSnapshotDefs(req *volumeGroupSnapshot.CreateVolumeGroupSn
 
 	return snapshotDefs, nil
 
-}
-
-//A VolumeGroupSnapshot request is idempotent if the following criteria is met:
-//1. For each snapshot we intend to make, there is a snapshot with the same name and ancestor ID on array
-//2. Each snapshot that we find to satisfy criteria 1 all belong to the same consitency group
-//3. The consistency group that satisfies criteria 2 contain no other snapshots
-func (s *service) checkIdempotency(ctx context.Context, snapshotsToMake *siotypes.SnapshotVolumesParam, systemID string, snapGrpID string) (*volumeGroupSnapshot.CreateVolumeGroupSnapshotResponse, error) {
-	Log.Infof("CheckIdempotency called")
-
-	//We use maps to keep track of info, to ensure criterias 1-3 are met
-
-	//Maps snapshots we intend to create (from snapshotsToMake)  -> boolean (boolean is true if snapshot already exists on aray, false otherwise)
-	idempotencyMap := make(map[string]bool)
-
-	//Maps idempotent snapshots -> consistency group ID
-	consistencyGroupMap := make(map[string]string)
-
-	//A list of snapshots found within the consistency group on the array. This is expensive to compute, so it's
-	//filled in last
-	var consistencyGroupOnArray []string
-
-	//Maps snapshot name -> snapshot ID
-	IDsForResponse := make(map[string]string)
-
-	//go through the existing vols, and update maps as needed
-	//check that all idempotent snapshots belong to the same consistency group.
-	//this check verifies criteria #2
-	consitencyGroupValue := snapGrpID
-	var idempotencyValue bool
-	for _, snap := range snapshotsToMake.SnapshotDefs {
-		//snapshots will always have a  consistency group ID, so setting it to "", means no snapshot was found
-		existingSnaps, _ := s.adminClients[systemID].GetVolume("", "", snap.VolumeID, "", true)
-		idempotencyMap[snap.VolumeID] = false
-		for _, existingSnap := range existingSnaps {
-			consistencyGroupMap[existingSnap.Name] = ""
-			//a snapshot in snapshotsToMake already exists in array, update maps
-			foundGrpID := systemID + "-" + existingSnap.ConsistencyGroupID
-			if snap.VolumeID == existingSnap.AncestorVolumeID && systemID+"-"+snapGrpID == foundGrpID {
-				Log.Infof("Snapshot for %s exists on array for group id %s", snap.VolumeID, foundGrpID)
-				idempotencyMap[snap.VolumeID] = true
-				idempotencyValue = true
-				consistencyGroupMap[existingSnap.Name] = foundGrpID
-				IDsForResponse[existingSnap.Name] = existingSnap.ID
-			} else {
-				delete(consistencyGroupMap, existingSnap.Name)
-			}
-		}
-	}
-
-	//check Idempotency map. Either all snapshots can be idempodent, or none can be idempotent. A mixture is not allowed
-	//this check verifies criteria #1
-	for snap := range idempotencyMap {
-		if idempotencyMap[snap] != idempotencyValue {
-			err := status.Error(codes.Internal, "Some snapshots exist on array, while others need to be created. Cannot create VolumeGroupSnapshot")
-			Log.Errorf("Error from checkIdempotency: %v ", err)
-			return nil, err
-		} else if idempotencyValue {
-			Log.Debugf("snap: %s already exists on array", snap)
-		} else {
-			Log.Debugf("snap: %s does not already exist on array", snap)
-		}
-	}
-	//since we know all values in idempotencyMap match idempotencyValue, we can return now
-	if idempotencyValue == false {
-		return nil, nil
-
-	}
-
-	//now we need to check that the consistency group contains no extra snaps. This is done last.
-	existingVols, _ := s.adminClients[systemID].GetVolume("", "", "", "", true)
-	for _, vol := range existingVols {
-		grpID := systemID + "-" + vol.ConsistencyGroupID
-		if grpID == systemID+"-"+consitencyGroupValue {
-			Log.Infof("Checking  %s: Snapshot %s found in consistency group.", consitencyGroupValue, vol.Name)
-			consistencyGroupOnArray = append(consistencyGroupOnArray, vol.Name)
-		}
-	}
-
-	//we know from criteria #2 that all idempotent snaps are in the same consistency group, so now we need to ensure that they're
-	//the only snaps in the consistency group.
-	//this check verifies criteria #3
-	if len(consistencyGroupOnArray) != len(IDsForResponse) {
-		err := status.Errorf(codes.Internal, "CG: %s contains more snapshots than requested. Cannot create VolumeGroupSnapshot", consitencyGroupValue)
-		Log.Errorf("Error from checkIdempotency: %v ", err)
-		return nil, err
-	}
-
-	Log.Infof("Request is idempotent")
-
-	//with all 3 criteria met, we need to return a CreateVolumeGroupSnapshotResponse with the VGS that satisfied the criteria
-	var groupSnapshots []*volumeGroupSnapshot.Snapshot
-	for snap := range IDsForResponse {
-		id := IDsForResponse[snap]
-		idToQuery := systemID + "-" + id
-		req := &csi.ListSnapshotsRequest{SnapshotId: idToQuery}
-		existingSnap, err := s.ListSnapshots(ctx, req)
-		if err != nil {
-			Log.Errorf("Failed to list snaps")
-		}
-		creationTime := existingSnap.Entries[0].Snapshot.CreationTime.GetSeconds()*1000000000 + int64(existingSnap.Entries[0].Snapshot.CreationTime.GetNanos())
-		fmt.Printf("Creation time is: %d\n", creationTime)
-		snap := volumeGroupSnapshot.Snapshot{
-			Name:          snap,
-			CapacityBytes: existingSnap.Entries[0].Snapshot.SizeBytes,
-			SnapId:        existingSnap.Entries[0].Snapshot.SnapshotId,
-			SourceId:      systemID + "-" + existingSnap.Entries[0].Snapshot.SourceVolumeId,
-			ReadyToUse:    existingSnap.Entries[0].Snapshot.ReadyToUse,
-			CreationTime:  creationTime,
-		}
-		groupSnapshots = append(groupSnapshots, &snap)
-	}
-	resp := &volumeGroupSnapshot.CreateVolumeGroupSnapshotResponse{SnapshotGroupID: systemID + "-" + consitencyGroupValue, Snapshots: groupSnapshots, CreationTime: groupSnapshots[0].CreationTime}
-	Log.Infof("Returning Idempotent response: %v", resp)
-	return resp, nil
 }
 
 //build the response for CreateVGS to return

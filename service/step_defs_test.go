@@ -2646,10 +2646,6 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 		SourceVolumeIDs: f.volumeIDList,
 		Parameters:      make(map[string]string),
 	}
-	if f.VolumeGroupSnapshot != nil {
-		// idempotency test
-		req.Parameters["existingSnapshotGroupID"] = strings.Split(f.VolumeGroupSnapshot.SnapshotGroupID, "-")[1]
-	}
 
 	group, err := f.service.CreateVolumeGroupSnapshot(ctx, req)
 	if err != nil {
@@ -2658,12 +2654,6 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 	if group != nil {
 		f.VolumeGroupSnapshot = group
 	}
-	return nil
-}
-
-func (f *feature) iRemoveAVolumeFromVolumeGroupSnapshotRequest() error {
-	//cut last volume off of list
-	f.volumeIDList = f.volumeIDList[0 : len(f.volumeIDList)-1]
 	return nil
 }
 
@@ -3375,7 +3365,6 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call CheckCreationTime$`, f.iCallCheckCreationTime)
 	s.Step(`^I call ControllerGetVolume$`, f.iCallControllerGetVolume)
 	s.Step(`^a valid ControllerGetVolumeResponse is returned$`, f.aValidControllerGetVolumeResponseIsReturned)
-	s.Step(`^remove a volume from VolumeGroupSnapshotRequest$`, f.iRemoveAVolumeFromVolumeGroupSnapshotRequest)
 	s.Step(`^I call DynamicLogChange "([^"]*)"$`, f.iCallDynamicLogChange)
 	s.Step(`^a valid DynamicLogChange occurs "([^"]*)" "([^"]*)"$`, f.aValidDynamicLogChange)
 
