@@ -89,4 +89,5 @@ require (
 
 replace (
 	github.com/dell/dell-csi-extensions/replication => ../dell-csi-extensions/replication
+	github.com/dell/goscaleio => ../goscaleio
 )
