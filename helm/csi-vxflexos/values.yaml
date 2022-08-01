@@ -82,6 +82,26 @@ fsGroupPolicy: File
 # "controller" allows to configure controller specific parameters
 controller:
 
+  # replication: allows to configure replication
+  # Replication CRDs must be installed before installing driver
+  replication:
+    # enabled: Enable/Disable replication feature
+    # Allowed values:
+    #   true: enable replication feature(install dell-csi-replicator sidecar)
+    #   false: disable replication feature(do not install dell-csi-replicator sidecar)
+    # Default value: false
+    enabled: true
+
+    # image: Image to use for dell-csi-replicator. This shouldn't be changed
+    # Allowed values: string
+    # Default value: None
+    image: dellemc/dell-csi-replicator:v1.3.0
+
+    # replicationContextPrefix: prefix to use for naming of resources created by replication feature
+    # Allowed values: string
+    # Default value: powerstore
+    replicationContextPrefix: "powerflex"
+
   healthMonitor:
     # enabled: Enable/Disable health monitor of CSI volumes
     # Allowed values:
@@ -222,8 +242,8 @@ vgsnapshotter:
   enabled: false
   image: dellemc/csi-volumegroup-snapshotter:v1.0.1
 
-# Podmon is an optional feature under development and tech preview.
-# Enable this feature only after contact support for additional information
+# Podmon is an optional feature that provides resiliency to worker node failures.
+# Enable this feature only after contact support for additional information.
 podmon:
   enabled: false
   image: dellemc/podmon:v1.2.0
