@@ -17,6 +17,10 @@ RUN CGO_ENABLED=0 \
 FROM $BASEIMAGE@${DIGEST} AS final
 # install necessary packages
 # alphabetical order for easier maintenance
+
+# Fix for packages not found.
+RUN echo $'[rhel-8-baseos]\nname=Red Hat Enterprise Linux 8 (BaseOS) - $basearch\nbaseurl=http://hb.us.dell.com/pub/redhat/RHEL8/stable/BaseOS/x86_64/os/\nenabled=1\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release,file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-beta\nskip_if_unavailable=1\n\n[rhel-8-appstream]\nname=Red Hat Enterprise Linux 8 (AppStream) - $basearch\nbaseurl=http://hb.us.dell.com/pub/redhat/RHEL8/stable/AppStream/x86_64/os/\nenabled=1\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release,file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-beta\nskip_if_unavailable=1' > /etc/yum.repos.d/dell-rpm.repo
+
 RUN microdnf update -y && \
     microdnf install -y  \
         e4fsprogs \

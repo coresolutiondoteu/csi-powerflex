@@ -254,7 +254,7 @@ spec:
             - name: X_CSI_REPLICATION_CONFIG_DIR
               value: /vxflexos-config-params
             - name: X_CSI_REPLICATION_CONFIG_FILE_NAME
-              value: vxflexos-config-params.yaml
+              value: driver-config-params.yaml
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
