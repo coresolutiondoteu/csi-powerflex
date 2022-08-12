@@ -68,6 +68,10 @@ const (
 	TRUE = "TRUE"
 	//FALSE means "false" (comment put in for lint check)
 	FALSE = "FALSE"
+
+	sioReplicationGroupExists   = "The Replication Consistency Group already exists"
+	sioReplicationGroupNotFound = "The Replication Consistency Group was not found"
+	sioReplicationPairExists    = "A Replication Pair for the specified local volume already exists"
 )
 
 // Extra metadata field names for propagating to goscaleio and beyond.
@@ -451,6 +455,145 @@ func (s *service) createVolumeFromSnapshot(req *csi.CreateVolumeRequest,
 	Log.Printf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
+}
+
+func (s *service) CreateReplicationConsistencyGroup(systemID string, name string,
+	rpo string, locatProtectionDomain string, remoteProtectionDomain string,
+	peerMdmId string, remoteSystemId string) (*siotypes.ReplicationConsistencyGroupResp, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	// One or the other, not both
+	if peerMdmId != "" && remoteSystemId != "" {
+		return nil, fmt.Errorf("PeerMdmID and RemoteSystemID cannot be present. One or the other.")
+	}
+
+	rcgPayload := &siotypes.ReplicationConsistencyGroupCreatePayload{
+		Name:                     name,
+		RpoInSeconds:             rpo,
+		ProtectionDomainId:       locatProtectionDomain,
+		RemoteProtectionDomainId: remoteProtectionDomain,
+		PeerMdmId:                peerMdmId,
+		DestinationSystemId:      remoteSystemId,
+	}
+
+	rcgResp, err := adminClient.CreateReplicationConsistencyGroup(rcgPayload)
+	if err != nil {
+		// Handle the case where it already exists.
+		if !strings.EqualFold(err.Error(), sioReplicationGroupExists) {
+			Log.Printf("Replication Creation Error: %s", err.Error())
+			return nil, err
+		}
+	}
+
+	rcgs, err := adminClient.GetReplicationConsistencyGroups()
+	if err != nil {
+		return nil, err
+	}
+
+	var id string
+	if rcgResp == nil {
+		for _, rcg := range rcgs {
+			if rcg.Name == name && rcg.ProtectionDomainId == locatProtectionDomain && rcg.RemoteProtectionDomainId == remoteProtectionDomain {
+				Log.Printf("Replication Group Found: %s, %s", rcg.ID, rcg.RemoteID)
+				id = rcg.ID
+				break
+			}
+		}
+
+		if id == "" {
+			return nil, status.Errorf(codes.Internal, "couldn't find replication consistency group")
+		}
+	} else {
+		id = rcgResp.ID
+	}
+
+	// Delay needed?
+
+	return &siotypes.ReplicationConsistencyGroupResp{
+		ID: id,
+	}, nil
+}
+
+func (s *service) DeleteReplicationConsistencyGroup(systemID string, groupId string) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return status.Errorf(codes.InvalidArgument, "can't find adminClient by id %s", systemID)
+	}
+
+	// no group id provided.
+	if groupId == "" {
+		return status.Errorf(codes.InvalidArgument, "group id wasn't provided")
+	}
+
+	group, err := adminClient.GetReplicationConsistencyGroupById(groupId)
+	if err != nil {
+		// Handle the case where it doesn't exist. Already deleted.
+		if strings.EqualFold(err.Error(), sioReplicationGroupNotFound) {
+			Log.WithFields(logrus.Fields{"id": groupId}).Debug("replication group is already deleted", groupId)
+			return nil
+		}
+
+		Log.Printf("Replication Deletion Error: %s", err.Error())
+		return err
+
+	}
+
+	rcg := goscaleio.NewReplicationConsistencyGroup(adminClient)
+	rcg.ReplicationConsistencyGroup = group
+
+	err = rcg.RemoveReplicationConsistencyGroup(false)
+
+	return err
+}
+
+func (s *service) CreateReplicationPair(systemID string, name string,
+	localVolumeID string, remoteVolumeID string, replicationGroupID string) (*siotypes.ReplicationPair, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	payload := &siotypes.QueryReplicationPair{
+		Name:                          name,
+		SourceVolumeID:                localVolumeID,
+		DestinationVolumeID:           remoteVolumeID,
+		ReplicationConsistencyGroupID: replicationGroupID,
+		CopyType:                      "OnlineCopy",
+	}
+
+	response, err := adminClient.CreateReplicationPair(payload)
+	if err != nil {
+		// Handle the case where it already exists.
+		if !strings.EqualFold(err.Error(), sioReplicationPairExists) {
+			Log.Printf("Replication Pair Creation Error: %s", err.Error())
+			return nil, err
+		}
+	}
+
+	Log.Printf("Replication Pair: %+v", response)
+	pairs, err := adminClient.GetReplicationPairs("")
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil {
+		for _, pair := range pairs {
+			if pair.Name == name {
+				Log.Printf("Replication Pair Found: %+v", pair)
+				response = pair
+				break
+			}
+		}
+
+		if response == nil {
+			return nil, status.Errorf(codes.Internal, "couldn't find replication pair")
+		}
+	}
+
+	return response, nil
 }
 
 func (s *service) clearCache() {

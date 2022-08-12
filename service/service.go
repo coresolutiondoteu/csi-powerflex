@@ -563,6 +563,53 @@ func (s *service) getStoragePoolNameFromID(systemID string, id string) string {
 	return storagePoolName
 }
 
+func (s *service) getPeerMdms(systemID string) ([]*siotypes.PeerMDM, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	mdms, err := adminClient.GetPeerMDMs()
+	if err != nil {
+		return nil, err
+	}
+	return mdms, nil
+}
+
+func (s *service) getSystem(systemID string) ([]*siotypes.System, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	// Gets the desired system content. Needed for remote replication.
+	system, err := adminClient.GetSystems()
+	if err != nil {
+		return nil, err
+	}
+	return system, nil
+}
+
+func (s *service) getProtectionDomain(systemID string, system *siotypes.System) ([]*siotypes.ProtectionDomain, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	// Gets the desired system content. Needed for remote replication.
+	theSystem, err := adminClient.FindSystem(system.ID, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	pd, err := theSystem.GetProtectionDomain("")
+	if err != nil {
+		return nil, err
+	}
+
+	return pd, nil
+}
+
 // Provide periodic logging of statistics like goroutines and memory
 func (s *service) logStatistics() {
 	if s.statisticsCounter = s.statisticsCounter + 1; (s.statisticsCounter % 100) == 0 {
