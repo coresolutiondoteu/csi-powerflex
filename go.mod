@@ -3,6 +3,16 @@ module github.com/dell/csi-vxflexos/v2
 // In order to run unit tests on Windows, you need a stubbed Windows implementation
 // of the gofsutil package. Use the following replace statements if necessary.
 
+replace github.com/dell/goscaleio => ./replace/goscaleio
+
+//replace github.com/dell/gofsutil => ./gofsutil
+
+replace github.com/dell/dell-csi-extensions/podmon => ./replace/dell-csi-extensions/podmon
+
+replace github.com/dell/dell-csi-extensions/replication => ./replace/dell-csi-extensions/replication
+
+replace github.com/dell/dell-csi-extensions/volumeGroupSnapshot => ./replace/dell-csi-extensions/volumeGroupSnapshot
+
 go 1.18
 
 require (
@@ -37,6 +47,7 @@ require (
 	github.com/cucumber/gherkin-go/v19 v19.0.3 // indirect
 	github.com/cucumber/messages-go/v16 v16.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dell/dell-csi-extensions/common v1.1.0 // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
@@ -85,9 +96,4 @@ require (
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
 	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
-)
-
-replace (
-	github.com/dell/dell-csi-extensions/replication => ../dell-csi-extensions/replication
-	github.com/dell/goscaleio => ../goscaleio
 )
