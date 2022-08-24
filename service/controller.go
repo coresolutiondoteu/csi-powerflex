@@ -759,6 +759,18 @@ func (s *service) DeleteVolume(
 			"volume in use by %s", vol.MappedSdcInfo[0].SdcID)
 	}
 
+	// If volume is marked for replication, remove the replication pair first (TBD).
+	if vol.VolumeReplicationState != "UnmarkedForReplication" {
+		Log.Printf("[DeleteVolume] - vol: %+v", vol)
+		pair, err := s.removeVolumeFromReplicationPair(systemID, volID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal,
+				"error removing replication pair: %s", err.Error())
+		}
+
+		Log.WithFields(logrus.Fields{"volume": volID, "replication": pair.ID}).Info("Removed Replication Pair")
+	}
+
 	Log.WithFields(logrus.Fields{"name": vol.Name, "id": csiVolID}).Info("Deleting volume")
 	tgtVol := goscaleio.NewVolume(s.adminClients[systemID])
 	tgtVol.Volume = vol
