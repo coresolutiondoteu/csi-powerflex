@@ -20,6 +20,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/dell/dell-csi-extensions/podmon"
+	replication "github.com/dell/dell-csi-extensions/replication"
 	volGroupSnap "github.com/dell/dell-csi-extensions/volumeGroupSnapshot"
 	"github.com/dell/gofsutil"
 	"github.com/dell/goscaleio"
@@ -34,8 +35,9 @@ import (
 )
 
 const (
-	arrayID                    = "14dbbf5617523654"
-	arrayID2                   = "15dbbf5617523655-system-name"
+	arrayID = "14dbbf5617523654"
+	//arrayID2                   = "15dbbf5617523655-system-name"
+	arrayID2                   = "15dbbf5617523655"
 	badVolumeID                = "Totally Fake ID"
 	badCsiVolumeID             = "ffff-f250"
 	goodVolumeID               = "111"
@@ -107,6 +109,8 @@ type feature struct {
 	controllerGetVolumeRequest            *csi.ControllerGetVolumeRequest
 	ControllerGetVolumeResponse           *csi.ControllerGetVolumeResponse
 	validateVolumeHostConnectivityResp    *podmon.ValidateVolumeHostConnectivityResponse
+	replicationCapabilitiesResponse       *replication.GetReplicationCapabilityResponse
+	createRemoteVolumeResponse            *replication.CreateRemoteVolumeResponse
 	listedVolumeIDs                       map[string]bool
 	listVolumesNextTokenCache             string
 	invalidVolumeID, noVolumeID, noNodeID bool
@@ -165,6 +169,7 @@ func (f *feature) aVxFlexOSService() error {
 	f.controllerGetCapabilitiesResponse = nil
 	f.validateVolumeCapabilitiesResponse = nil
 	f.validateVolumeHostConnectivityResp = nil
+	f.replicationCapabilitiesResponse = nil
 	f.service = nil
 	f.createVolumeRequest = nil
 	f.publishVolumeRequest = nil
@@ -959,6 +964,10 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.NoVolError = true
 	case "SetVolumeSizeError":
 		stepHandlersErrors.SetVolumeSizeError = true
+	case "PeerMdmError":
+		stepHandlersErrors.PeerMdmError = true
+	case "CreateVolumeError":
+		stepHandlersErrors.CreateVolumeError = true
 	case "NoSymlinkForNodePublish":
 		cmd := exec.Command("rm", "-rf", nodePublishSymlinkDir)
 		_, err := cmd.CombinedOutput()
@@ -1077,6 +1086,16 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.CreateVGSBadTimeError = true
 	case "CreateSplitVGSError":
 		stepHandlersErrors.CreateSplitVGSError = true
+	case "BadRemoteSystemIDError":
+		stepHandlersErrors.BadRemoteSystemIDError = true
+	case "ProbePrimaryError":
+		f.service.adminClients[arrayID] = nil
+		f.service.systems[arrayID] = nil
+		stepHandlersErrors.PodmonControllerProbeError = true
+	case "ProbeSecondaryError":
+		f.service.adminClients[arrayID2] = nil
+		f.service.systems[arrayID2] = nil
+		stepHandlersErrors.PodmonControllerProbeError = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -3226,6 +3245,104 @@ func (f *feature) iCallGetArrayConfig() error {
 	return nil
 }
 
+func (f *feature) aRemoteVolumeIsReturned(arg1 string) error {
+	if arg1 == "false" {
+		return nil
+	}
+	if f.err != nil {
+		return f.err
+	}
+	return nil
+}
+
+func (f *feature) iCallCreateRemoteVolume() error {
+	ctx := new(context.Context)
+	req := &replication.CreateRemoteVolumeRequest{}
+	req.VolumeHandle = f.createVolumeResponse.Volume.VolumeId
+	if stepHandlersErrors.NoVolIDError {
+		req.VolumeHandle = ""
+	}
+	if stepHandlersErrors.BadVolIDError {
+		req.VolumeHandle = "0"
+	}
+	req.Parameters = map[string]string{
+		"replication.storage.dell.com/remoteStoragePool": "viki_pool_HDD_20181031",
+		"replication.storage.dell.com/remoteSystem":      "15dbbf5617523655",
+	}
+	f.createRemoteVolumeResponse, f.err = f.service.CreateRemoteVolume(*ctx, req)
+	if f.err != nil {
+		fmt.Printf("CreateRemoteVolumeRequest returned error: %s", f.err)
+	} else {
+		fmt.Printf("CreateRemoteVolumeRequest returned %+v", f.createRemoteVolumeResponse)
+	}
+	return nil
+}
+
+func (f *feature) iCallGetReplicationCapabilities() error {
+	req := &replication.GetReplicationCapabilityRequest{}
+	ctx := new(context.Context)
+	f.replicationCapabilitiesResponse, f.err = f.service.GetReplicationCapabilities(*ctx, req)
+	log.Printf("GetReplicationCapabilities returned %+v", f.replicationCapabilitiesResponse)
+	return nil
+}
+
+func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error {
+	if f.err != nil {
+		return f.err
+	}
+	var createRemoteVolume, createProtectionGroup, deleteProtectionGroup, replicationActionExecution, monitorProtectionGroup bool
+	for _, cap := range f.replicationCapabilitiesResponse.GetCapabilities() {
+		if cap == nil {
+			continue
+		}
+		rpc := cap.GetRpc()
+		if rpc == nil {
+			continue
+		}
+		ty := rpc.GetType()
+		switch ty {
+		case replication.ReplicationCapability_RPC_CREATE_REMOTE_VOLUME:
+			createRemoteVolume = true
+		case replication.ReplicationCapability_RPC_CREATE_PROTECTION_GROUP:
+			createProtectionGroup = true
+		case replication.ReplicationCapability_RPC_DELETE_PROTECTION_GROUP:
+			deleteProtectionGroup = true
+		case replication.ReplicationCapability_RPC_MONITOR_PROTECTION_GROUP:
+			monitorProtectionGroup = true
+		case replication.ReplicationCapability_RPC_REPLICATION_ACTION_EXECUTION:
+			replicationActionExecution = true
+		}
+	}
+	var failoverRemote, unplannedFailoverLocal, reprotectLocal, suspend, resume, sync bool
+	for _, act := range f.replicationCapabilitiesResponse.GetActions() {
+		if act == nil {
+			continue
+		}
+		ty := act.GetType()
+		switch ty {
+		case replication.ActionTypes_FAILOVER_REMOTE:
+			failoverRemote = true
+		case replication.ActionTypes_UNPLANNED_FAILOVER_LOCAL:
+			unplannedFailoverLocal = true
+		case replication.ActionTypes_REPROTECT_LOCAL:
+			reprotectLocal = true
+		case replication.ActionTypes_SUSPEND:
+			suspend = true
+		case replication.ActionTypes_RESUME:
+			resume = true
+		case replication.ActionTypes_SYNC:
+			sync = true
+		}
+	}
+	if !createRemoteVolume || !createProtectionGroup || !deleteProtectionGroup || !replicationActionExecution || !monitorProtectionGroup {
+		return fmt.Errorf("Not all expected ReplicationCapability_RPC capabilities were returned")
+	}
+	if !failoverRemote || !unplannedFailoverLocal || !reprotectLocal || !suspend || !resume || !sync {
+		return fmt.Errorf("Not all expected ReplicationCapbility_RPC actions were returned")
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
@@ -3378,6 +3495,11 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^remove a volume from VolumeGroupSnapshotRequest$`, f.iRemoveAVolumeFromVolumeGroupSnapshotRequest)
 	s.Step(`^I call DynamicLogChange "([^"]*)"$`, f.iCallDynamicLogChange)
 	s.Step(`^a valid DynamicLogChange occurs "([^"]*)" "([^"]*)"$`, f.aValidDynamicLogChange)
+
+	s.Step(`^a "([^"]*)" remote volume is returned$`, f.aRemoteVolumeIsReturned)
+	s.Step(`^a "([^"]*)" replication capabilities structure is returned$`, f.aReplicationCapabilitiesStructureIsReturned)
+	s.Step(`^I call CreateRemoteVolume$`, f.iCallCreateRemoteVolume)
+	s.Step(`^I call GetReplicationCapabilities$`, f.iCallGetReplicationCapabilities)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

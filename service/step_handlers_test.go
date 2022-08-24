@@ -74,6 +74,9 @@ var (
 		NoVolIDError                  bool
 		NoVolIDSDCError               bool
 		NoVolError                    bool
+		PeerMdmError                  bool
+		CreateVolumeError             bool
+		BadRemoteSystemIDError        bool
 	}
 )
 
@@ -97,6 +100,7 @@ func getHandler() http.Handler {
 	volumeIDToAncestorID = make(map[string]string)
 	volumeNameToID = make(map[string]string)
 	volumeIDToConsistencyGroupID = make(map[string]string)
+	volumeIDToSizeInKB = make(map[string]string)
 	debug = false
 	stepHandlersErrors.FindVolumeIDError = false
 	stepHandlersErrors.GetVolByIDError = false
@@ -151,6 +155,9 @@ func getHandler() http.Handler {
 	stepHandlersErrors.NoVolIDError = false
 	stepHandlersErrors.NoVolIDSDCError = false
 	stepHandlersErrors.NoVolError = false
+	stepHandlersErrors.PeerMdmError = false
+	stepHandlersErrors.CreateVolumeError = false
+	stepHandlersErrors.BadRemoteSystemIDError = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -166,6 +173,7 @@ func getRouter() http.Handler {
 	scaleioRouter.HandleFunc("/api/version", handleVersion)
 	scaleioRouter.HandleFunc("/api/types/System/instances", handleSystemInstances)
 	scaleioRouter.HandleFunc("/api/types/Volume/instances", handleVolumeInstances)
+	scaleioRouter.HandleFunc("/api/types/PeerMdm/instances", handlePeerMdmInstances)
 	scaleioRouter.HandleFunc("/api/types/StoragePool/instances", handleStoragePoolInstances)
 	scaleioRouter.HandleFunc("{Volume}/relationship/Statistics", handleVolumeStatistics)
 	scaleioRouter.HandleFunc("/api/Volume/relationship/Statistics", handleVolumeStatistics)
@@ -225,6 +233,10 @@ func handleSystemInstances(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "PodmonControllerProbeError", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
+	if stepHandlersErrors.BadRemoteSystemIDError {
+		returnJSONFile("features", "get_primary_system_instance.json", w, nil)
+		return
+	}
 	if stepHandlersErrors.systemNameMatchingError {
 		count++
 	}
@@ -235,6 +247,15 @@ func handleSystemInstances(w http.ResponseWriter, r *http.Request) {
 	} else {
 		returnJSONFile("features", "get_system_instances.json", w, nil)
 	}
+}
+
+// handle PeerMDM instances implements GET /api/types/PeerMdm/instances
+func handlePeerMdmInstances(w http.ResponseWriter, r *http.Request) {
+	if stepHandlersErrors.PeerMdmError {
+		writeError(w, "PeerMdmError", http.StatusRequestTimeout, codes.Internal)
+		return
+	}
+	returnJSONFile("features", "get_peer_mdms.json", w, nil)
 }
 
 // handleStoragePoolInstances implements GET /api/types/StoragePool/instances
@@ -291,6 +312,9 @@ var volumeIDToAncestorID map[string]string
 // Map of volume ID to consistency group ID
 var volumeIDToConsistencyGroupID map[string]string
 
+// Map of volume ID to size in KB
+var volumeIDToSizeInKB map[string]string
+
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	if volumeIDToName == nil {
@@ -298,6 +322,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToAncestorID = make(map[string]string)
 		volumeNameToID = make(map[string]string)
 		volumeIDToConsistencyGroupID = make(map[string]string)
+		volumeIDToSizeInKB = make(map[string]string)
 	}
 	if stepHandlersErrors.VolumeInstancesError {
 		writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
@@ -307,12 +332,17 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 
 	// Post is CreateVolume; here just return a volume id encoded from the name
 	case http.MethodPost:
+		if stepHandlersErrors.CreateVolumeError {
+			writeError(w, "create volume induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
 		req := types.VolumeParam{}
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&req)
 		if err != nil {
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
+		fmt.Printf("POST to create volume name %s\n", req.Name)
 		if volumeNameToID[req.Name] != "" {
 			w.WriteHeader(http.StatusInternalServerError)
 			// duplicate volume name response
@@ -331,10 +361,12 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		// good response
 		resp := new(types.VolumeResp)
 		resp.ID = hex.EncodeToString([]byte(req.Name))
+		fmt.Printf("Generated volume ID %s Name %s\n", resp.ID, req.Name)
 		volumeIDToName[resp.ID] = req.Name
 		volumeNameToID[req.Name] = resp.ID
 		volumeIDToAncestorID[resp.ID] = "null"
 		volumeIDToConsistencyGroupID[resp.ID] = "null"
+		volumeIDToSizeInKB[resp.ID] = req.VolumeSizeInKb
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
@@ -356,6 +388,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
 			replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
 			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
+			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
 			data := returnJSONFile("features", "volume.json.template", nil, replacementMap)
 			vol := new(types.Volume)
 			err := json.Unmarshal(data, vol)
@@ -453,6 +486,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			volumeNameToID[snapParam.SnapshotName] = id
 			volumeIDToAncestorID[id] = snapParam.VolumeID
 			volumeIDToConsistencyGroupID[id] = cgValue
+			volumeIDToSizeInKB[id] = "32678"
 		}
 
 		if stepHandlersErrors.WrongVolIDError {
@@ -467,6 +501,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		volumeIDToName[id] = ""
 		volumeIDToAncestorID[id] = ""
 		volumeIDToConsistencyGroupID[id] = ""
+		volumeIDToSizeInKB[id] = ""
 		if name != "" {
 			volumeNameToID[name] = ""
 		}
@@ -587,6 +622,7 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
 			replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
 			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
+			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
 			returnJSONFile("features", "volume.json.template", w, replacementMap)
 		} else {
 			log.Printf("Did not find id %s for %s\n", id, objType)
