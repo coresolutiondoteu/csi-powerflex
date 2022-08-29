@@ -767,8 +767,9 @@ func (s *service) DeleteVolume(
 			return nil, status.Errorf(codes.Internal,
 				"error removing replication pair: %s", err.Error())
 		}
-
-		Log.WithFields(logrus.Fields{"volume": volID, "replication": pair.ID}).Info("Removed Replication Pair")
+		Log.Printf("[DeleteVolume] - Removed Pair: %+v", pair)
+		Log.Printf("[DeleteVolume] - Context: %+v", req)
+		// Log.WithFields(logrus.Fields{"volume": volID, "replication": pair.ID}).Info("Removed Replication Pair")
 	}
 
 	Log.WithFields(logrus.Fields{"name": vol.Name, "id": csiVolID}).Info("Deleting volume")
