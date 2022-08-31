@@ -12,6 +12,7 @@ Feature: VxFlex OS CSI interface
   I want to test ephemeral volume  methods
   So that they are known to work
 
+@ephemeral
 Scenario: Controller Publish Ephemeral Volume Fails
     Given a VxFlexOS service
     And a controller published ephemeral volume
@@ -22,6 +23,7 @@ Scenario: Controller Publish Ephemeral Volume Fails
     And I call NodeUnpublishVolume "SDC_GUID"
     Then the error contains "inline ephemeral controller publish failed"
 
+@ephemeral
 Scenario: Node Publish Ephemeral Volume Fails
     Given a VxFlexOS service
     And a controller published ephemeral volume
@@ -32,6 +34,7 @@ Scenario: Node Publish Ephemeral Volume Fails
     When I call NodePublishVolume "SDC_GUID"
     Then the error contains "inline ephemeral node publish failed"
 
+@ephemeral
 Scenario: Controller Unpublish Ephemeral Volume Fails 
     Given a VxFlexOS service
     And a controller published ephemeral volume
@@ -44,6 +47,7 @@ Scenario: Controller Unpublish Ephemeral Volume Fails
     And I call NodeUnpublishVolume "SDC_GUID"
     Then the error contains "Inline ephemeral controller unpublish failed"
  
+@ephemeral
 Scenario Outline: Node publish and unpublish ephemeral volume
     Given a VxFlexOS service
     And a controller published ephemeral volume
@@ -65,6 +69,7 @@ Examples:
  | "csi-d0f055a700000000"  | "30Gi"         | "viki_pool_HDD_20181031" | "does-not-exist"   | "not recgonized"                        |
  | "csi-d0f055a700012345"  | "30Gi"         | "viki_pool_HDD_20181031" | "15dbbf5617523655-system-name" | "not published"             |
 
+@ephemeral
 Scenario Outline: Ephemeral Node Unpublish with errors
 	Given a VxFlexOS service
 	And I induce error <error>
@@ -76,6 +81,7 @@ Examples:
       | "NoVolumeIDError" | "volume ID is required"                         |
       | "none"            | "Inline ephemeral. Was unable to read lockfile" |
 
+@ephemeral
 Scenario Outline: Ephemeral Node Publish with errors
         Given a VxFlexOS service
         And I call EphemeralNodePublish

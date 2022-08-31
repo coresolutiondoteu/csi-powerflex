@@ -3,6 +3,7 @@ Feature: VxFlex OS CSI interface
   I want to test list service methods
   So that they are known to work
 
+@publish-unpublish
   Scenario Outline: Node publish various use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -22,6 +23,7 @@ Feature: VxFlex OS CSI interface
       | "mount" | "single-node-single-writer" | "none" | "none"                                                            |
       | "mount" | "single-node-multi-writer"  | "none" | "none"                                                            |
 
+@publish-unpublish
   Scenario Outline: Node publish block volumes various induced error use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -52,6 +54,7 @@ Feature: VxFlex OS CSI interface
       | "NodePublishBadTargetPath"               | "cannot find the path specified@@no such file or directory" |
       | "none"                                   | "none"                                                      |
 
+@publish-unpublish
   Scenario Outline: Node publish mount volumes various induced error use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -66,6 +69,7 @@ Feature: VxFlex OS CSI interface
       | error                                    | errormsg                               |
       | "NodePublishPrivateTargetAlreadyMounted" | "Mount point already in use by device" |
 
+@publish-unpublish
   Scenario Outline: Node publish mount volumes various induced error use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -100,6 +104,7 @@ Feature: VxFlex OS CSI interface
       | "NodePublishBadTargetPath"               | "none"                   | "cannot find the path specified@@no such file or directory" |
       | "NoCsiVolIDError"                        | "none"                   | "volume ID is required"                                     |
 
+@publish-unpublish
   Scenario: Induce legacy volume check failure
     Given a VxFlexOS service
     And a controller published volume
@@ -109,6 +114,7 @@ Feature: VxFlex OS CSI interface
     When I call NodePublishVolume "SDC_GUID"
     Then the error contains "is shorter than 3 chars, returning error"
 
+@publish-unpublish
   Scenario: Induce Node publish block volumes no system ID failure
     Given setup Get SystemID to fail
     And a VxFlexOS service
@@ -119,6 +125,7 @@ Feature: VxFlex OS CSI interface
     When I call NodePublishVolume "SDC_GUID"
     Then the error contains "systemID is not found in the request and there is no default system"
 
+@publish-unpublish
   Scenario Outline: Node publish various use cases from examples when volume already published
     Given a VxFlexOS service
     And a controller published volume
@@ -138,6 +145,7 @@ Feature: VxFlex OS CSI interface
       | "mount" | "multiple-writer" | "ext4" | "Mount volumes do not support AccessMode MULTI_NODE_MULTI_WRITER" |
       | "block" | "multiple-reader" | "none" | "none"                                                            |
 
+@publish-unpublish
   Scenario Outline: Node publish various use cases from examples when read-only mount volume already published
     Given a VxFlexOS service
     And a controller published volume
@@ -158,6 +166,7 @@ Feature: VxFlex OS CSI interface
       | "mount" | "single-writer"   | "ext4" | "Access mode conflicts with existing mounts"        |
       | "mount" | "multiple-writer" | "ext4" | "do not support AccessMode MULTI_NODE_MULTI_WRITER" |
 
+@publish-unpublish
   Scenario Outline: Node publish various use cases from examples when read-only mount volume already published and I change the target path
     Given a VxFlexOS service
     And a controller published volume
@@ -179,6 +188,7 @@ Feature: VxFlex OS CSI interface
       | "mount" | "single-writer"   | "ext4" | "Access mode conflicts with existing mounts"        |
       | "mount" | "multiple-writer" | "ext4" | "do not support AccessMode MULTI_NODE_MULTI_WRITER" |
 
+@publish-unpublish
   Scenario: Node publish volume with volume context
     Given a VxFlexOS service
     And a controller published volume
@@ -189,6 +199,7 @@ Feature: VxFlex OS CSI interface
     And I call NodePublishVolume "SDC_GUID"
     Then the error contains "none"
 
+@publish-unpublish
   Scenario Outline: Node Unpublish various use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -207,6 +218,7 @@ Feature: VxFlex OS CSI interface
       | "mount" | "multi-pod-rw"    | "none" | "Mount volumes do not support AccessMode MULTI_NODE_MULTI_WRITER" |
       | "block" | "multi-pod-rw"    | "none" | "none"                                                            |
 
+@publish-unpublish
   Scenario Outline: Node Unpublish mount volumes various induced error use cases from examples
     Given a VxFlexOS service
     And a controller published volume
@@ -228,6 +240,7 @@ Feature: VxFlex OS CSI interface
       | "NoCsiVolIDError"                        | "volume ID is required"                              |
       | "none"                                   | "none"                                               |
 
+@publish-unpublish
   Scenario: Induce Node Unpublish mount volumes ephemeral ID failure
     Given a VxFlexOS service
     And a controller published volume
@@ -245,6 +258,7 @@ Feature: VxFlex OS CSI interface
       | "IncorrectEphemeralID" | "none"                                     |
       | "EmptyEphemeralID"     | "is shorter than 3 chars, returning error" |
 
+@publish-unpublish
   Scenario: Induce Node publish block volumes no system ID failure
     Given setup Get SystemID to fail
     And a VxFlexOS service
@@ -256,11 +270,13 @@ Feature: VxFlex OS CSI interface
     And I call NodeUnpublishVolume "SDC_GUID"
     Then the error contains "systemID is not found in the request and there is no default system"
 
+@publish-unpublish
   Scenario: Get device given invalid path
     Given a VxFlexOS service
     When I call GetDevice "INVALIDPATH"
     Then the error contains "invalid path error"
 
+@publish-unpublish
   Scenario Outline: Call getMappedVols with correct and incorrect inputs
     Given two identical volumes on two different systems
     When I call getMappedVols with volID <volID> and sysID <sysID>
@@ -271,11 +287,13 @@ Feature: VxFlex OS CSI interface
       | "c0f055aa00000000" | "34dbbf5617523654" | "none"                                                                       |
       | "c0f055aa00000000" | "14dbbf5617523654" | "volume: c0f055aa00000000 on system: 14dbbf5617523654 not published to node" |
 
+@publish-unpublish
   Scenario: Check that getMappedVols returns correct volume from correct system
     Given two identical volumes on two different systems
     When I call getMappedVols with volID "c0f055aa00000000" and sysID "34dbbf5617523654"
     Then the volume "c0f055aa00000000" is from the correct system "34dbbf5617523654"
 
+@publish-unpublish
   Scenario: Call CleanupPrivateTarget to verify that when target mounts exist, private target is not deleted
     Given a VxFlexOS service
     And a controller published volume
@@ -286,51 +304,61 @@ Feature: VxFlex OS CSI interface
     And I call CleanupPrivateTarget
     Then the error contains "Cannot delete private mount as target mount exist"
 
+@publish-unpublish
   Scenario: Call removeWithRetry negative test
     Given a VxFlexOS service
     And I call removeWithRetry
     Then the error contains "read-only file system"
 
+@publish-unpublish
   Scenario: Call I call unmountPrivMount negative test
     Given a VxFlexOS service
     And I call unmountPrivMount
     Then the error contains "error in unmountPrivMount"
 
+@publish-unpublish
   Scenario: Call I call getPathMounts negative test
     Given a VxFlexOS service
     And I call getPathMounts
     Then the error contains "error in GetPathMounts"
 
+@publish-unpublish
   Scenario: Call handlePrivFSMount  negative test
     Given a VxFlexOS service
     And I call handlePrivFSMount
     Then the error contains "error in handlePrivFSMount"
 
+@publish-unpublish
   Scenario: Call evalSymlinks negative test
     Given a VxFlexOS service
     And I call evalSymlinks
     Then the error contains "error in evalSymlinks"
 
+@publish-unpublish
   Scenario: Call evalSymlinks negative test
     Given a VxFlexOS service
     And I call CleanupPrivateTarget for errors
     Then the error contains "error in CleanupPrivateTarget"
 
+@publish-unpublish
   Scenario: mount publishVolume negative test
     Given a VxFlexOS service
     And I call mount publishVolume
     Then the error contains "error in publishVolume"
 
+@publish-unpublish
   Scenario: Call unpublishVolume negative test
     Given a VxFlexOS service
     And I call mount unpublishVolume
     Then the error contains "error in unpublishVolume"
 
+@publish-unpublish
   Scenario: Call mount validateVolCapabilities negative test
     Given a VxFlexOS service
     And I call mountValidateBlockVolCapabilities
     Then the error contains "Unknown Access Mode"
 
+@publish-unpublish
   Scenario: Check if the CleanupPrivateTarget target deletes private target when there are no target mounts.
     Given a VxFlexOS service
     And a controller published volume

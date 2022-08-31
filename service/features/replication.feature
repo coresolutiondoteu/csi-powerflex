@@ -3,7 +3,7 @@ Feature: PowerFlex replication
   So that replication is known to work
 
 @replication
-Scenario Outline: Call GetReplicationCapabilities
+Scenario Outline: Test GetReplicationCapabilities
   Given a VxFlexOS service
   And I induce error <error>
   When I call GetReplicationCapabilities
@@ -15,7 +15,7 @@ Scenario Outline: Call GetReplicationCapabilities
   
 
 @replication
-Scenario Outline: Create and delete a replicated volume
+Scenario Outline: Test CreateRemoteVolume
   Given a VxFlexOS service
   When I call CreateVolume <name>
   And I induce error <error>
@@ -34,3 +34,35 @@ Scenario Outline: Create and delete a replicated volume
   | "sourcevol"              | "BadRemoteSystemIDError"     | "systemid or systemname not found" | "false"  |
   | "sourcevol"              | "ProbePrimaryError"          | "PodmonControllerProbeError"       | "false"  |
   | "sourcevol"              | "ProbeSecondaryError"        | "PodmonControllerProbeError"       | "false"  |
+
+
+@replication
+Scenario Outline: Test CreateStorageProtectionGroup
+  Given a VxFlexOS service
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I induce error <error>
+  And I call CreateStorageProtectionGroup
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name                     | error                        | errormsg                           | valid    |
+  | "sourcevol"              | "none"                       | "none"                             | "true"   | 
+  | "sourcevol"              | "NoVolIDError"               | "volume ID is required"            | "false"  |
+  | "sourcevol"              | "BadVolIDError"               | "failed to provide"            | "false"  |
+  | "sourcevol"              | "EmptyParametersListError"   | "empty parameters list"         | "false"  |
+  | "sourcevol"              | "controller-probe"           | "PodmonControllerProbeError"       | "false"  |
+  | "sourcevol"              | "GetVolByIDError"            | "can't query volume"               | "false"  |
+  | "sourcevol"              | "ReplicationConsistencyGroupError" | "create rcg induced error"                         | "false"  |
+  | "sourcevol"              | "GetReplicationConsistencyGroupError" | "could not GET ReplicationConsistencyGroup"                      | "false"  |
+  | "sourcevol"              | "ProbePrimaryError" | "PodmonControllerProbeError"                      | "false"  |
+  | "sourcevol"              | "ProbeSecondaryError" | "PodmonControllerProbeError"                      | "false"  |
+  | "sourcevol"              | "ProbeSecondaryError" | "PodmonControllerProbeError"                      | "false"  |
+  | "sourcevol"              | "NoProtectionDomainError" | "NoProtectionDomainError"                      | "false"  |
+  | "sourcevol"              | "ReplicationPairError" | "POST ReplicationPair induced error"                      | "false"  |
+  | "sourcevol"              | "GetReplicationPairError"                                  | "GET ReplicationPair induced error"		       | "false"  |
+  | "sourcevol"              | "PeerMdmError"               | "PeerMdmError"                     | "false"  |
+  | "sourcevol"              | "RemoteReplicationConsistencyGroupError"               | "could not GET Remote ReplicationConsistencyGroup"                     | "false"  |
+  | "sourcevol"              | "RemoteRCGBadNameError"                                  | "remote replication consistency group not found"		       | "false"  |
+
+

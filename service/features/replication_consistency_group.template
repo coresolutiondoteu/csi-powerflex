@@ -1,0 +1,51 @@
+{
+        "id": "__ID__",
+        "name": "__NAME__",
+        "rpoInSeconds": 60,
+        "protectionDomainId": "1dee83c600000000",
+        "remoteProtectionDomainId": "928208a900000000",
+        "peerMdmId": "d02aebc400000000",
+        "remoteId": "246701fb00000001",
+        "remoteMdmId": "4c33e14b19f0380f",
+        "replicationDirection": "LocalToRemote",
+        "currConsistMode": "PartiallyConsistent",
+        "freezeState": "Unfrozen",
+        "pauseMode": "None",
+        "lifetimeState": "Normal",
+        "type": "User",
+        "disasterRecoveryState": "None",
+        "remoteDisasterRecoveryState": "None",
+        "targetVolumeAccessMode": "NoAccess",
+        "failoverType": "None",
+        "failoverState": "None",
+        "activeLocal": true,
+        "activeRemote": true,
+        "abstractState": "Ok",
+        "error": 65,
+        "localActivityState": "Active",
+        "remoteActivityState": "Active",
+        "inactiveReason": 11,
+        "links": [
+                {
+                        "rel": "self",
+                        "href": "/api/instances/ReplicationConsistencyGroup::__ID__"
+                },
+                {
+                        "rel": "/api/ReplicationConsistencyGroup/relationship/Statistics",
+                        "href": "/api/instances/ReplicationConsistencyGroup::__ID__/relationships/Statistics"
+                },
+                {
+                        "rel": "/api/ReplicationConsistencyGroup/relationship/ReplicationPair",
+                        "href": "/api/instances/ReplicationConsistencyGroup::__ID__/relationships/ReplicationPair"
+                },
+                {
+                        "rel": "/api/parent/relationship/peerMdmId",
+                        "href": "/api/instances/PeerMdm::d02aebc400000000"
+                },
+                {
+                        "rel": "/api/parent/relationship/protectionDomainId",
+                        "href": "/api/instances/ProtectionDomain::1dee83c600000000"
+                }
+        ]
+}
+

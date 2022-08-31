@@ -28,6 +28,9 @@ const (
 	ErrSuccess ErrorCode = 65
 )
 
+const rcgNameInUse string = "RCG Name already in use"
+const replicationPairNameInUse string = "Replication Pair Name already in use"
+
 func (s *service) GetReplicationCapabilities(ctx context.Context, req *replication.GetReplicationCapabilityRequest) (*replication.GetReplicationCapabilityResponse, error) {
 	Log.Printf("req GetReplicationCapabilities %+v", req)
 	var rep = new(replication.GetReplicationCapabilityResponse)
@@ -127,9 +130,9 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 		return nil, status.Error(codes.InvalidArgument, "failed to provide system ID or volume ID")
 	}
 
-	//if err := s.requireProbe(ctx, systemID); err != nil {
-	//	return nil, err
-	//}
+	if err := s.requireProbe(ctx, systemID); err != nil {
+		return nil, err
+	}
 
 	localSystem, err := s.getSystem(systemID)
 	if err != nil {
@@ -144,13 +147,12 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	Log.Printf("[CreateStorageProtectionGroup] - Local Protection Domain: %+v", localProtectionDomain)
 
 	remoteSystem, err := s.getSystem(parameters["replication.storage.dell.com/remoteSystem"])
-	rs := remoteSystem
 	if err != nil {
 		return nil, err
 	}
-	Log.Printf("[CreateStorageProtectionGroup] - Remote System Content: %+v", rs)
+	Log.Printf("[CreateStorageProtectionGroup] - Remote System Content: %+v", remoteSystem)
 
-	remoteProtectionDomain, err := s.getProtectionDomain(parameters["replication.storage.dell.com/remoteSystem"], rs)
+	remoteProtectionDomain, err := s.getProtectionDomain(parameters["replication.storage.dell.com/remoteSystem"], remoteSystem)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +168,7 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	consistencyGroupName := "replica-rcg"
 	localRcg, err := s.CreateReplicationConsistencyGroup(systemID, consistencyGroupName,
 		parameters["replication.storage.dell.com/rpo"], localProtectionDomain[0].ID,
-		remoteProtectionDomain[0].ID, "", rs.ID)
+		remoteProtectionDomain[0].ID, "", remoteSystem.ID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid rcg response: %s", err.Error())
 	}
@@ -181,11 +183,11 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	remoteVolumeName := "replicated-" + vol.Name
 
 	// Probe the remote system
-	if err := s.requireProbe(ctx, rs.ID); err != nil {
+	if err := s.requireProbe(ctx, remoteSystem.ID); err != nil {
 		return nil, err
 	}
 
-	adminClient := s.adminClients[rs.ID]
+	adminClient := s.adminClients[remoteSystem.ID]
 	if adminClient == nil {
 		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
 	}
@@ -241,7 +243,7 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	}
 
 	remoteParams := map[string]string{
-		"systemName":        rs.ID,
+		"systemName":        remoteSystem.ID,
 		"replicationPairID": remotePairId,
 	}
 

@@ -111,6 +111,7 @@ type feature struct {
 	validateVolumeHostConnectivityResp    *podmon.ValidateVolumeHostConnectivityResponse
 	replicationCapabilitiesResponse       *replication.GetReplicationCapabilityResponse
 	createRemoteVolumeResponse            *replication.CreateRemoteVolumeResponse
+	createStorageProtectionGroupResponse  *replication.CreateStorageProtectionGroupResponse
 	listedVolumeIDs                       map[string]bool
 	listVolumesNextTokenCache             string
 	invalidVolumeID, noVolumeID, noNodeID bool
@@ -1096,6 +1097,22 @@ func (f *feature) iInduceError(errtype string) error {
 		f.service.adminClients[arrayID2] = nil
 		f.service.systems[arrayID2] = nil
 		stepHandlersErrors.PodmonControllerProbeError = true
+	case "ReplicationConsistencyGroupError":
+		stepHandlersErrors.ReplicationConsistencyGroupError = true
+	case "GetReplicationConsistencyGroupError":
+		stepHandlersErrors.GetReplicationConsistencyGroupError = true
+	case "NoProtectionDomainError":
+		stepHandlersErrors.NoProtectionDomainError = true
+	case "EmptyParametersListError":
+		stepHandlersErrors.EmptyParametersListError = true
+	case "ReplicationPairError":
+		stepHandlersErrors.ReplicationPairError = true
+	case "GetReplicationPairError":
+		stepHandlersErrors.GetReplicationPairError = true
+	case "RemoteReplicationConsistencyGroupError":
+		stepHandlersErrors.RemoteReplicationConsistencyGroupError = true
+	case "RemoteRCGBadNameError":
+		stepHandlersErrors.RemoteRCGBadNameError = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -3263,7 +3280,7 @@ func (f *feature) iCallCreateRemoteVolume() error {
 		req.VolumeHandle = ""
 	}
 	if stepHandlersErrors.BadVolIDError {
-		req.VolumeHandle = "0"
+		req.VolumeHandle = "/"
 	}
 	req.Parameters = map[string]string{
 		"replication.storage.dell.com/remoteStoragePool": "viki_pool_HDD_20181031",
@@ -3275,6 +3292,27 @@ func (f *feature) iCallCreateRemoteVolume() error {
 	} else {
 		fmt.Printf("CreateRemoteVolumeRequest returned %+v", f.createRemoteVolumeResponse)
 	}
+	return nil
+}
+
+func (f *feature) iCallCreateStorageProtectionGroup() error {
+	ctx := new(context.Context)
+	parameters := make(map[string]string)
+	if !stepHandlersErrors.EmptyParametersListError {
+		parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
+		parameters["replication.storage.dell.com/rpo"] = "60"
+	}
+	req := &replication.CreateStorageProtectionGroupRequest{
+		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
+		Parameters:   parameters,
+	}
+	if stepHandlersErrors.NoVolIDError {
+		req.VolumeHandle = ""
+	}
+	if stepHandlersErrors.BadVolIDError {
+		req.VolumeHandle = "0/"
+	}
+	f.createStorageProtectionGroupResponse, f.err = f.service.CreateStorageProtectionGroup(*ctx, req)
 	return nil
 }
 
@@ -3290,7 +3328,7 @@ func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error
 	if f.err != nil {
 		return f.err
 	}
-	var createRemoteVolume, createProtectionGroup, deleteProtectionGroup, replicationActionExecution, monitorProtectionGroup bool
+	var createRemoteVolume, createProtectionGroup, deleteProtectionGroup, monitorProtectionGroup, replicationActionExecution bool
 	for _, cap := range f.replicationCapabilitiesResponse.GetCapabilities() {
 		if cap == nil {
 			continue
@@ -3341,6 +3379,9 @@ func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error
 		return fmt.Errorf("Not all expected ReplicationCapbility_RPC actions were returned")
 	}
 	return nil
+}
+
+func InitializeScenario(ctx *godog.ScenarioContext) {
 }
 
 func FeatureContext(s *godog.ScenarioContext) {
@@ -3495,10 +3536,10 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^remove a volume from VolumeGroupSnapshotRequest$`, f.iRemoveAVolumeFromVolumeGroupSnapshotRequest)
 	s.Step(`^I call DynamicLogChange "([^"]*)"$`, f.iCallDynamicLogChange)
 	s.Step(`^a valid DynamicLogChange occurs "([^"]*)" "([^"]*)"$`, f.aValidDynamicLogChange)
-
 	s.Step(`^a "([^"]*)" remote volume is returned$`, f.aRemoteVolumeIsReturned)
 	s.Step(`^a "([^"]*)" replication capabilities structure is returned$`, f.aReplicationCapabilitiesStructureIsReturned)
 	s.Step(`^I call CreateRemoteVolume$`, f.iCallCreateRemoteVolume)
+	s.Step(`^I call CreateStorageProtectionGroup$`, f.iCallCreateStorageProtectionGroup)
 	s.Step(`^I call GetReplicationCapabilities$`, f.iCallGetReplicationCapabilities)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {

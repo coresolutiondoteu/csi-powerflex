@@ -1,0 +1,24 @@
+[{
+	"rfcacheEnabled":true,
+	"rebuildNetworkThrottlingEnabled":false,	
+	"rebalanceNetworkThrottlingEnabled":false,	
+	"overallIoNetworkThrottlingEnabled":false,	
+	"protectionDomainState":"Active",	
+	"rebuildNetworkThrottlingInKbps":null,	
+	"rebalanceNetworkThrottlingInKbps":null,	
+	"overallIoNetworkThrottlingInKbps":null,	
+	"protectedMaintenanceModeNetworkThrottlingEnabled":false,
+	"protectedMaintenanceModeNetworkThrottlingInKbps":null,
+	"rplCapAlertLevel":"normal",
+	"sdrSdsConnectivityInfo":{"clientServerConnStatus":"CLIENT_SERVER_CONN_STATUS_ALL_CONNECTED", 
+		"disconnectedClientId":"",
+		"disconnectedClientName":"",
+		"disconnectedServerId":"",
+		"disconnectedServerName":"",
+		"disconnectedServerIp":""
+	},
+	"systemId":"7ad2b6e84ac1c70f",
+	"name":"domain1",
+	"id":"1dee83c600000000",
+	"links":[{"rel":"self","href":"/api/instances/ProtectionDomain::1dee83c600000000"},{"rel":"/api/ProtectionDomain/relationship/Statistics","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/Statistics"},{"rel":"/api/ProtectionDomain/relationship/Sdr","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/Sdr"},{"rel":"/api/ProtectionDomain/relationship/AccelerationPool","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/AccelerationPool"},{"rel":"/api/ProtectionDomain/relationship/StoragePool","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/StoragePool"},{"rel":"/api/ProtectionDomain/relationship/Sds","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/Sds"},{"rel":"/api/ProtectionDomain/relationship/ReplicationConsistencyGroup","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/ReplicationConsistencyGroup"},{"rel":"/api/ProtectionDomain/relationship/FaultSet","href":"/api/instances/ProtectionDomain::1dee83c600000000/relationships/FaultSet"},{"rel":"/api/parent/relationship/systemId","href":"/api/instances/System::7ad2b6e84ac1c70f"}]
+}]

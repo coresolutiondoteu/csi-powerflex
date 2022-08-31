@@ -3,6 +3,7 @@ Feature: VxFlex OS CSI interface
   I want to test list service methods
   So that they are known to work
 
+@list
   Scenario: Test list volumes allowing an unlimited number of volumes
     Given a VxFlex OS service
     And there are 5 valid volumes
@@ -11,6 +12,7 @@ Feature: VxFlex OS CSI interface
     Then a valid ListVolumesResponse is returned
     And 5 volumes are listed
 
+@list
   Scenario: Test list volumes, limiting the number of volumes to be less than the number present using max_entries.
     Given a VxFlex OS service
     And there are 5 valid volumes
@@ -19,6 +21,7 @@ Feature: VxFlex OS CSI interface
     Then a valid ListVolumesResponse is returned
     And 1 volume is listed
 
+@list
   Scenario: Test list volumes starting at a different offset (using next_token)
     Given a VxFlex OS service
     And there are 5 valid volumes
@@ -28,6 +31,7 @@ Feature: VxFlex OS CSI interface
     Then a valid ListVolumesResponse is returned
     And 3 volumes are listed
 
+@list
   Scenario: Test list volumes with an invalid starting token
     Given a VxFlex OS service
     And a valid volume
@@ -35,6 +39,7 @@ Feature: VxFlex OS CSI interface
     And I call ListVolumes with max_entries "1" and starting_token "invalid"
     Then an invalid ListVolumesResponse is returned
 
+@list
   Scenario: Test list volumes with induced volume instances error
     Given a VxFlex OS service
     And a valid volume
@@ -43,6 +48,7 @@ Feature: VxFlex OS CSI interface
     And I call ListVolumes with max_entries "1" and starting_token "none"
     Then the error contains "Unable to list volumes"
 
+@list
   Scenario: Test list volumes with an starting token greater than volume count
     Given a VxFlex OS service
     And a valid volume
@@ -50,6 +56,7 @@ Feature: VxFlex OS CSI interface
     And I call ListVolumes with max_entries "1" and starting_token "larger"
     Then an invalid ListVolumesResponse is returned
 
+@list
   Scenario: List snapshots
     Given a VxFlexOS service
     And there are 5 valid snapshots of "default" volume
@@ -57,6 +64,7 @@ Feature: VxFlex OS CSI interface
     And I call ListSnapshots with max_entries "5" and starting_token ""
     Then a valid ListSnapshotsResponse is returned with listed "5" and next_token ""
 
+@list
   Scenario: List snapshots with invalid starting token
     Given a VxFlexOS service
     And there are 5 valid snapshots of "default" volume
@@ -64,6 +72,7 @@ Feature: VxFlex OS CSI interface
     And I call ListSnapshots with max_entries "5" and starting_token "abcd"
     Then the error contains "Unable to parse StartingToken"
 
+@list
   Scenario: List snapshots with induced error reading snapshots
     Given a VxFlexOS service
     And there are 5 valid snapshots of "default" volume
@@ -72,6 +81,7 @@ Feature: VxFlex OS CSI interface
     And I call ListSnapshots with max_entries "5" and starting_token ""
     Then the error contains "Unable to list snapshots"
 
+@list
   Scenario: List snapshots with induced error badVolID
     Given a VxFlexOS service
     And there are 1 valid snapshots of "default" volume
@@ -81,6 +91,7 @@ Feature: VxFlex OS CSI interface
     Then the error contains "none"
 
 
+@list
   Scenario: List snapshots two entries at times
     Given a VxFlexOS service
     And there are 5 valid snapshots of "default" volume
@@ -92,6 +103,7 @@ Feature: VxFlex OS CSI interface
     And I call ListSnapshots with max_entries "2" and starting_token "4"
     And a valid ListSnapshotsResponse is returned with listed "1" and next_token ""
 
+@list
   Scenario: List snapshots with 50000 entries
     Given a VxFlexOS service
     And there are 50000 valid snapshots of "default" volume
@@ -110,6 +122,7 @@ Feature: VxFlex OS CSI interface
     And a valid ListSnapshotsResponse is returned with listed "5" and next_token ""
     And the total snapshots listed is "50000"
 
+@list
   Scenario: List snapshots for a given volume ancestor
     Given a VxFlexOS service
     And a valid volume
@@ -121,6 +134,7 @@ Feature: VxFlex OS CSI interface
     And I call ListSnapshots for volume "alt"
     And a valid ListSnapshotsResponse is returned with listed "10" and next_token ""
 
+@list
   Scenario: List a particular snapshot
     Given a VxFlexOS service
     And a valid volume
@@ -130,6 +144,7 @@ Feature: VxFlex OS CSI interface
     And a valid ListSnapshotsResponse is returned with listed "1" and next_token ""
     And the snapshot ID is "0000-3"
 
+@list
   Scenario: List a particular snapshot with induced error
     Given a VxFlexOS service
     And a valid volume
