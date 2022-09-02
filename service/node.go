@@ -399,7 +399,7 @@ func (s *service) nodeProbe(ctx context.Context) error {
 			return status.Errorf(codes.FailedPrecondition, "%s", err)
 		}
 
-		Log.Infof("SDC approval status: %s", sdc.Sdc.SdcApproved)
+		Log.Infof("SDC approval status: %v", sdc.Sdc.SdcApproved)
 
 		if sdc.Sdc.Name == hostName {
 			Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
