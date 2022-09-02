@@ -390,7 +390,7 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		}
 	}
 
-	out, err := exec.Command("hostname").CombinedOutput()
+	out, err := exec.Command("echo", "$HOSTNAME").CombinedOutput()
 	hostName := string(out)
 
 
