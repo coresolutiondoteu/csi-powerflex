@@ -390,13 +390,14 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		}
 	}
 
-	out, err := exec.Command("echo", "$HOSTNAME").CombinedOutput()
-	hostName := string(out)
 
+	hostName, ok := os.LookupEnv("HOSTNAME")
+        if !ok {
+            fmt.Printf("%s not set\n", "HOSTNAME")
+	}           
+	//out, err := exec.Command("echo", "$HOSTNAME").CombinedOutput()
+	//hostName := string(out)
 
-	if err != nil || hostName == ""{
-		return status.Errorf(codes.FailedPrecondition, "Failed to get hostname: %s", err)
-	}
 
 	for _, systemID := range connectedSystemID {
 		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
