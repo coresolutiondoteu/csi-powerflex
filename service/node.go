@@ -372,15 +372,6 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		Log.WithField("guid", s.opts.SdcGUID).Info("set SDC GUID")
 	}
 
-	// now that you have guid, grab ID: func (s *service) getSDCID(sdcGUID string, systemID string) (string, error) {
-
-	 //sdcID, err := s.getSDCID(nodeID, systemID)
-	
-	// then to find hostname, run an os command or something
-
-	//then call the method you made in goscaleio
-
-
 	// fetch the systemIDs
 	var err error
 	if len(connectedSystemID) == 0 {
@@ -390,33 +381,40 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		}
 	}
 
-
 	hostName, ok := os.LookupEnv("HOSTNAME")
-        if !ok {
-            fmt.Printf("%s not set\n", "HOSTNAME")
-	}           
-	//out, err := exec.Command("echo", "$HOSTNAME").CombinedOutput()
-	//hostName := string(out)
-
+	if !ok {
+		fmt.Printf("%s not set\n", "HOSTNAME")
+	}
 
 	for _, systemID := range connectedSystemID {
 		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
 
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "%s", err)
-		} 
+		}
 
-		Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)		
+		sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
 
-		err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
-		
 		if err != nil {
-                        return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
-                }
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		}
 
-		   		
+		Log.Infof("SDC approval status: %s", sdc.Sdc.SdcApproved)
+
+		if sdc.Sdc.Name == hostName {
+			Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
+		} else {
+
+			Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)
+
+			err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
+
+			if err != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
+			}
+		}
+
 	}
-
 
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)
