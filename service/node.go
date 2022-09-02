@@ -372,6 +372,15 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		Log.WithField("guid", s.opts.SdcGUID).Info("set SDC GUID")
 	}
 
+	// now that you have guid, grab ID: func (s *service) getSDCID(sdcGUID string, systemID string) (string, error) {
+
+	 //sdcID, err := s.getSDCID(nodeID, systemID)
+	
+	// then to find hostname, run an os command or something
+
+	//then call the method you made in goscaleio
+
+
 	// fetch the systemIDs
 	var err error
 	if len(connectedSystemID) == 0 {
@@ -380,6 +389,33 @@ func (s *service) nodeProbe(ctx context.Context) error {
 			return status.Errorf(codes.FailedPrecondition, "%s", err)
 		}
 	}
+
+	out, err := exec.Command("hostname").CombinedOutput()
+	hostName := string(out)
+
+
+	if err != nil || hostName == ""{
+		return status.Errorf(codes.FailedPrecondition, "Failed to get hostname: %s", err)
+	}
+
+	for _, systemID := range connectedSystemID {
+		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
+
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		} 
+
+		Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)		
+
+		err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
+		
+		if err != nil {
+                        return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
+                }
+
+		   		
+	}
+
 
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)
