@@ -112,6 +112,7 @@ type feature struct {
 	replicationCapabilitiesResponse       *replication.GetReplicationCapabilityResponse
 	createRemoteVolumeResponse            *replication.CreateRemoteVolumeResponse
 	createStorageProtectionGroupResponse  *replication.CreateStorageProtectionGroupResponse
+	deleteStorageProtectionGroupResponse  *replication.DeleteStorageProtectionGroupResponse
 	listedVolumeIDs                       map[string]bool
 	listVolumesNextTokenCache             string
 	invalidVolumeID, noVolumeID, noNodeID bool
@@ -1113,6 +1114,12 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.RemoteReplicationConsistencyGroupError = true
 	case "RemoteRCGBadNameError":
 		stepHandlersErrors.RemoteRCGBadNameError = true
+	case "RemoveRCGError":
+		stepHandlersErrors.RemoveRCGError = true
+	case "NoDeleteReplicationPair":
+		stepHandlersErrors.NoDeleteReplicationPair = true
+	case "BadRemoteSystem":
+		stepHandlersErrors.BadRemoteSystem = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -1399,6 +1406,25 @@ func (f *feature) iCallDeleteVolumeWith(arg1 string) error {
 	f.deleteVolumeResponse, f.err = f.service.DeleteVolume(*ctx, req)
 	if f.err != nil {
 		log.Printf("DeleteVolume called failed: %s\n", f.err.Error())
+	}
+	return nil
+}
+
+func (f *feature) iCallDeleteVolume(name string) error {
+	for id, name := range volumeIDToName {
+		fmt.Printf("volIDToName id %s name %s\n", id, name)
+	}
+	for name, id := range volumeNameToID {
+		fmt.Printf("volNameToID name %s id %s\n", name, id)
+	}
+	ctx := new(context.Context)
+	req := f.getControllerDeleteVolumeRequest("single-writer")
+	id := arrayID + "-" + volumeNameToID[name]
+	log.Printf("iCallDeleteVolume name %s to ID %s", name, id)
+	req.VolumeId = id
+	f.deleteVolumeResponse, f.err = f.service.DeleteVolume(*ctx, req)
+	if f.err != nil {
+		fmt.Printf("DeleteVolume error: %s", f.err)
 	}
 	return nil
 }
@@ -3302,10 +3328,15 @@ func (f *feature) iCallCreateStorageProtectionGroup() error {
 		parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
 		parameters["replication.storage.dell.com/rpo"] = "60"
 	}
+	if stepHandlersErrors.BadRemoteSystem {
+		parameters["replication.storage.dell.com/remoteSystem"] = "xxx"
+	}
 	req := &replication.CreateStorageProtectionGroupRequest{
 		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
 		Parameters:   parameters,
 	}
+	fmt.Printf("CreateStorageProtectionGroupRequest %+v\n", req)
+	fmt.Printf("StorageProtectionGroupRequest volumeHandle %s\n", req.VolumeHandle)
 	if stepHandlersErrors.NoVolIDError {
 		req.VolumeHandle = ""
 	}
@@ -3321,6 +3352,18 @@ func (f *feature) iCallGetReplicationCapabilities() error {
 	ctx := new(context.Context)
 	f.replicationCapabilitiesResponse, f.err = f.service.GetReplicationCapabilities(*ctx, req)
 	log.Printf("GetReplicationCapabilities returned %+v", f.replicationCapabilitiesResponse)
+	return nil
+}
+
+func (f *feature) iCallDeleteStorageProtectionGroup() error {
+	ctx := new(context.Context)
+	attributes := make(map[string]string)
+	attributes["systemName"] = arrayID
+	req := &replication.DeleteStorageProtectionGroupRequest{
+		ProtectionGroupId:         f.createStorageProtectionGroupResponse.LocalProtectionGroupId,
+		ProtectionGroupAttributes: attributes,
+	}
+	f.deleteStorageProtectionGroupResponse, f.err = f.service.DeleteStorageProtectionGroup(*ctx, req)
 	return nil
 }
 
@@ -3379,9 +3422,6 @@ func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error
 		return fmt.Errorf("Not all expected ReplicationCapbility_RPC actions were returned")
 	}
 	return nil
-}
-
-func InitializeScenario(ctx *godog.ScenarioContext) {
 }
 
 func FeatureContext(s *godog.ScenarioContext) {
@@ -3541,6 +3581,8 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call CreateRemoteVolume$`, f.iCallCreateRemoteVolume)
 	s.Step(`^I call CreateStorageProtectionGroup$`, f.iCallCreateStorageProtectionGroup)
 	s.Step(`^I call GetReplicationCapabilities$`, f.iCallGetReplicationCapabilities)
+	s.Step(`^I call DeleteStorageProtectionGroup$`, f.iCallDeleteStorageProtectionGroup)
+	s.Step(`^I call DeleteVolume "([^"]*)"$`, f.iCallDeleteVolume)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

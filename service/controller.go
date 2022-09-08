@@ -573,7 +573,6 @@ func (s *service) CreateReplicationPair(systemID string, name string,
 		}
 	}
 
-	Log.Printf("Replication Pair: %+v", response)
 	pairs, err := adminClient.GetReplicationPairs("")
 	if err != nil {
 		return nil, err
@@ -591,6 +590,21 @@ func (s *service) CreateReplicationPair(systemID string, name string,
 		if response == nil {
 			return nil, status.Errorf(codes.Internal, "couldn't find replication pair")
 		}
+	}
+
+	return response, nil
+}
+
+func (s *service) CreateReplicationConsistencyGroupSnapshot(systemID string, replicationGroupID string) (*siotypes.CreateReplicationConsistencyGroupSnapshotResp, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	response, err := adminClient.CreateReplicationConsistencyGroupSnapshot(replicationGroupID, false)
+	// TODO: Handle duplicate snapshots.
+	if err != nil {
+		return nil, err
 	}
 
 	return response, nil
