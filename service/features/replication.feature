@@ -5,6 +5,7 @@ Feature: PowerFlex replication
 @replication
 Scenario Outline: Test GetReplicationCapabilities
   Given a VxFlexOS service
+  And I use config "replication-config"
   And I induce error <error>
   When I call GetReplicationCapabilities
   Then the error contains <errormsg>
@@ -17,6 +18,7 @@ Scenario Outline: Test GetReplicationCapabilities
 @replication
 Scenario Outline: Test CreateRemoteVolume
   Given a VxFlexOS service
+  And I use config "replication-config"
   When I call CreateVolume <name>
   And I induce error <error>
   And I call CreateRemoteVolume
@@ -31,7 +33,7 @@ Scenario Outline: Test CreateRemoteVolume
   | "sourcevol"              | "PeerMdmError"               | "PeerMdmError"                     | "false"  |
   | "sourcevol"              | "CreateVolumeError"          | "create volume induced error"      | "false"  |
   | "sourcevol"              | "BadVolIDError"              | "failed to provide"                | "false"  |
-  | "sourcevol"              | "BadRemoteSystemIDError"     | "systemid or systemname not found" | "false"  |
+  | "sourcevol"              | "BadRemoteSystemIDError"     | "System 15dbbf5617523655 not found"| "false"  |
   | "sourcevol"              | "ProbePrimaryError"          | "PodmonControllerProbeError"       | "false"  |
   | "sourcevol"              | "ProbeSecondaryError"        | "PodmonControllerProbeError"       | "false"  |
 
@@ -39,6 +41,7 @@ Scenario Outline: Test CreateRemoteVolume
 @replication
 Scenario Outline: Test CreateStorageProtectionGroup
   Given a VxFlexOS service
+  And I use config "replication-config"
   When I call CreateVolume <name>
   And I call CreateRemoteVolume
   And I induce error <error>
@@ -70,6 +73,7 @@ Scenario Outline: Test CreateStorageProtectionGroup
 @replication
 Scenario Outline: Test CreateStorageProtectionGroup
   Given a VxFlexOS service
+  And I use config "replication-config"
   When I call CreateVolume <name>
   And I call CreateRemoteVolume
   And I call CreateStorageProtectionGroup

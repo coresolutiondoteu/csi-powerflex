@@ -286,6 +286,8 @@ func (s *service) NodeUnpublishVolume(
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
+var getMappedVolDelay = (1 * time.Second)
+
 // Get sdc mapped volume from the given volume ID/systemID
 func (s *service) getSDCMappedVol(volumeID string, systemID string, maxRetry int) (*goscaleio.SdcMappedVolume, error) {
 	// If not found immediately, give a little time for controller to
@@ -302,7 +304,7 @@ func (s *service) getSDCMappedVol(volumeID string, systemID string, maxRetry int
 			break
 		}
 		Log.Printf("Node publish getMappedVol retry: %d", i)
-		time.Sleep(1 * time.Second)
+		time.Sleep(getMappedVolDelay)
 	}
 	if err != nil {
 		Log.Printf("SDC returned volume %s on system %s not published to node", volumeID, systemID)

@@ -105,7 +105,7 @@ Feature: VxFlex OS CSI interface
 
 @list
   Scenario: List snapshots with 50000 entries
-    Given a VxFlexOS service
+    Given a VxFlexOS service with timeout 5000 milliseconds
     And there are 50000 valid snapshots of "default" volume
     When I call Probe
     Then I call ListSnapshots with max_entries "9999" and starting_token ""

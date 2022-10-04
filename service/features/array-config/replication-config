@@ -8,12 +8,11 @@
       "systemID": "14dbbf5617523654"
    },
    {
-      "endpoint": "http://127.0.0.2",
+      "endpoint": "http://127.0.0.1",
       "username": "admin",
       "password": "Password123",
       "skipCertificateValidation": true,
       "isDefault": false,
-      "systemID": "15dbbf5617523655-system-name",
-      "AllSystemNames" : "15dbbf5617523655-previous-name"
+      "systemID": "15dbbf5617523655"
    }
 ]

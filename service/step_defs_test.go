@@ -41,10 +41,13 @@ const (
 	badVolumeID                = "Totally Fake ID"
 	badCsiVolumeID             = "ffff-f250"
 	goodVolumeID               = "111"
+	goodVolumeName             = "vol1"
 	badVolumeID2               = "9999"
 	badVolumeID3               = "99"
-	goodVolumeName             = "vol1"
 	altVolumeID                = "222"
+	altVolumeName              = "vol2"
+	snappedVolumeID            = "3456"
+	snappedVolumeName          = "snappedVolume"
 	goodNodeID                 = "9E56672F-2F4B-4A42-BFF4-88B6846FBFDA"
 	goodArrayConfig            = "./features/array-config/config"
 	goodDriverConfig           = "./features/driver-config/logConfig.yaml"
@@ -136,7 +139,12 @@ func (f *feature) checkGoRoutines(tag string) {
 }
 
 func (f *feature) aVxFlexOSService() error {
+	return f.aVxFlexOSServiceWithTimeoutMilliseconds(50)
+}
+
+func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	f.checkGoRoutines("start aVxFlexOSService")
+	goscaleio.ClientConnectTimeout = time.Duration(millis) * time.Millisecond
 	// Save off the admin client and the system
 	if f.service != nil {
 		adminClient := f.service.adminClients[arrayID]
@@ -217,6 +225,7 @@ func (f *feature) aVxFlexOSService() error {
 
 	// configure variables in the driver
 	publishGetMappedVolMaxRetry = 2
+	getMappedVolDelay = 10 * time.Millisecond
 
 	// Get or reuse the cached service
 	f.getService()
@@ -232,8 +241,17 @@ func (f *feature) aVxFlexOSService() error {
 		}
 		if f.service.opts.arrays != nil {
 			f.service.opts.arrays[arrayID].Endpoint = f.server.URL
-			f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+			if f.service.opts.arrays[arrayID2] != nil {
+				f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+			}
 		}
+		addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
+		addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
+		addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
+		addPreConfiguredVolume(goodVolumeID, goodVolumeName)
+		addPreConfiguredVolume(altVolumeID, altVolumeName)
+		addPreConfiguredVolume(badVolumeID2, badVolumeID2)
+		addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
 	} else {
 		f.server = nil
 	}
@@ -272,11 +290,13 @@ func (f *feature) getService() *service {
 	if DriverConfigParamsFile != goodDriverConfig {
 		DriverConfigParamsFile = goodDriverConfig
 	}
+	fmt.Printf("ArrayConfigFile %s DriverConfigParamsFile %s\n", ArrayConfigFile, DriverConfigParamsFile)
 
 	if f.service != nil {
 		return f.service
 	}
 	var opts Opts
+	opts.arrays = make(map[string]*ArrayConnectionData)
 	ctx := new(context.Context)
 	var err error
 	opts.arrays, err = getArrayConfig(*ctx)
@@ -425,8 +445,8 @@ func (f *feature) iCallGetPluginInfo() error {
 }
 
 func (f *feature) iCallcheckVolumesMap(id string) error {
+	f.service.volumePrefixToSystems["123"] = []string{arrayID2}
 	f.err = f.service.checkVolumesMap(id)
-
 	return nil
 
 }
@@ -1270,6 +1290,9 @@ func (f *feature) aValidVolume() error {
 	}
 	volumeIDToName[volIDtoUse] = goodVolumeName
 	volumeNameToID[goodVolumeName] = volIDtoUse
+	volumeIDToSizeInKB[volIDtoUse] = defaultVolumeSize
+	volumeIDToReplicationState[volIDtoUse] = unmarkedForReplication
+
 	return nil
 }
 
@@ -1440,6 +1463,9 @@ func (f *feature) aValidListVolumesResponseIsReturned() error {
 	if f.listVolumesResponse == nil {
 		return errors.New("expected a non-nil listVolumesResponse, but it was nil")
 	}
+	for _, vol := range f.listVolumesResponse.Entries {
+		fmt.Printf("vol %s\n", vol.GetVolume().VolumeId)
+	}
 	return nil
 }
 
@@ -1455,6 +1481,7 @@ func (f *feature) iCallGetCapacityWithStoragePool(arg1 string) error {
 	if arg1 != "" {
 		parameters := make(map[string]string)
 		parameters[KeyStoragePool] = arg1
+		parameters[KeySystemID] = arrayID
 		req.Parameters = parameters
 	}
 	log.Printf("Calling GetCapacity")
@@ -1712,6 +1739,16 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVoltypeAccessFstype(voltype
 // thereAreValidVolumes creates the requested number of volumes
 // for the test scenario, using a suffix.
 func (f *feature) thereAreValidVolumes(n int) error {
+	// Remove the pre-configured volumes
+	removePreConfiguredVolume(sdcVolume1)
+	removePreConfiguredVolume(sdcVolume2)
+	removePreConfiguredVolume(sdcVolume0)
+	removePreConfiguredVolume(goodVolumeID)
+	removePreConfiguredVolume(altVolumeID)
+	removePreConfiguredVolume(badVolumeID2)
+	removePreConfiguredVolume(snappedVolumeID)
+
+	// Add in the requsted number of volumes
 	idTemplate := "111-11%d"
 	nameTemplate := "vol%d"
 	for i := 0; i < n; i++ {
@@ -1719,6 +1756,8 @@ func (f *feature) thereAreValidVolumes(n int) error {
 		id := fmt.Sprintf(idTemplate, i)
 		volumeIDToName[id] = id
 		volumeNameToID[name] = name
+		volumeIDToSizeInKB[id] = defaultVolumeSize
+		volumeIDToReplicationState[id] = unmarkedForReplication
 	}
 	return nil
 }
@@ -2876,6 +2915,8 @@ func (f *feature) aValidSnapshot() error {
 	volumeIDToName[goodSnapID] = "snap4"
 	volumeNameToID["snap4"] = goodSnapID
 	volumeIDToAncestorID[goodSnapID] = goodVolumeID
+	volumeIDToSizeInKB[goodSnapID] = defaultVolumeSize
+	volumeIDToReplicationState[goodSnapID] = unmarkedForReplication
 	return nil
 }
 
@@ -2898,6 +2939,8 @@ func (f *feature) aValidSnapshotConsistencyGroup() error {
 	volumeNameToID["snap4"] = goodSnapID
 	volumeIDToAncestorID[goodSnapID] = goodVolumeID
 	volumeIDToConsistencyGroupID[goodSnapID] = goodVolumeID
+	volumeIDToSizeInKB[goodSnapID] = "8192"
+	volumeIDToReplicationState[goodSnapID] = unmarkedForReplication
 
 	// second snapshot in CG; this looks weird, but we give same ID to snap
 	// as it's ancestor so that we can publish the volume
@@ -2905,6 +2948,8 @@ func (f *feature) aValidSnapshotConsistencyGroup() error {
 	volumeNameToID["snap5"] = altSnapID
 	volumeIDToAncestorID[altSnapID] = altVolumeID
 	volumeIDToConsistencyGroupID[altSnapID] = goodVolumeID
+	volumeIDToSizeInKB[altSnapID] = "8192"
+	volumeIDToReplicationState[altSnapID] = unmarkedForReplication
 
 	// only return the SDC mappings on the altSnapID
 	req := f.getControllerPublishVolumeRequest("single-writer")
@@ -2958,6 +3003,8 @@ func (f *feature) thereAreValidSnapshotsOfVolume(nsnapshots int, volume string) 
 		volumeIDToName[id] = name
 		volumeNameToID[name] = id
 		volumeIDToAncestorID[id] = volumeID
+		volumeIDToSizeInKB[id] = "8192"
+		volumeIDToReplicationState[id] = unmarkedForReplication
 	}
 	return nil
 }
@@ -2967,11 +3014,13 @@ func (f *feature) iCallListSnapshotsWithMaxentriesAndStartingtoken(maxEntriesStr
 	if err != nil {
 		return nil
 	}
-	ctx := new(context.Context)
+	goscaleio.ClientConnectTimeout = 50000 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	req := &csi.ListSnapshotsRequest{MaxEntries: int32(maxEntries), StartingToken: startingTokenString}
 	f.listSnapshotsRequest = req
 	log.Printf("Calling ListSnapshots with req=%+v", f.listVolumesRequest)
-	f.listSnapshotsResponse, f.err = f.service.ListSnapshots(*ctx, req)
+	f.listSnapshotsResponse, f.err = f.service.ListSnapshots(ctx, req)
 	if f.err != nil {
 		log.Printf("ListSnapshots called failed: %s\n", f.err.Error())
 	}
@@ -3069,23 +3118,35 @@ func (f *feature) iInvalidateTheProbeCache() error {
 
 	if stepHandlersErrors.NoEndpointError {
 		f.service.opts.arrays[arrayID].Endpoint = ""
-		f.service.opts.arrays[arrayID2].Endpoint = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Endpoint = ""
+		}
 		f.service.opts.AutoProbe = true
 	} else if stepHandlersErrors.NoUserError {
 		f.service.opts.arrays[arrayID].Username = ""
-		f.service.opts.arrays[arrayID2].Username = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Username = ""
+		}
 	} else if stepHandlersErrors.NoPasswordError {
 		f.service.opts.arrays[arrayID].Password = ""
-		f.service.opts.arrays[arrayID2].Password = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Password = ""
+		}
 	} else if stepHandlersErrors.NoSysNameError {
 		f.service.opts.arrays[arrayID].SystemID = ""
-		f.service.opts.arrays[arrayID2].SystemID = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].SystemID = ""
+		}
 	} else if stepHandlersErrors.WrongSysNameError {
 		f.service.opts.arrays[arrayID].SystemID = "WrongSystemName"
-		f.service.opts.arrays[arrayID2].SystemID = "WrongSystemName"
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].SystemID = "WrongSystemName"
+		}
 	} else if testControllerHasNoConnection {
 		f.service.adminClients[arrayID] = nil
-		f.service.adminClients[arrayID2] = nil
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.adminClients[arrayID2] = nil
+		}
 	}
 
 	return nil
@@ -3094,6 +3155,7 @@ func (f *feature) iInvalidateTheProbeCache() error {
 func (f *feature) iCallupdateVolumesMap(systemID string) error {
 
 	f.service.volumePrefixToSystems["123"] = []string{"123456789"}
+	fmt.Printf("volumePrefixToSystems %v\n", f.service.volumePrefixToSystems)
 	f.err = f.service.UpdateVolumePrefixToSystemsMap(systemID)
 	return nil
 }
@@ -3301,6 +3363,9 @@ func (f *feature) aRemoteVolumeIsReturned(arg1 string) error {
 func (f *feature) iCallCreateRemoteVolume() error {
 	ctx := new(context.Context)
 	req := &replication.CreateRemoteVolumeRequest{}
+	if f.createVolumeResponse == nil {
+		return errors.New("iCallCreateRemoteVolume: f.createVolumeResponse is nil")
+	}
 	req.VolumeHandle = f.createVolumeResponse.Volume.VolumeId
 	if stepHandlersErrors.NoVolIDError {
 		req.VolumeHandle = ""
@@ -3424,9 +3489,37 @@ func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error
 	return nil
 }
 
+func (f *feature) iUseConfig(filename string) error {
+	ArrayConfigFile = "./features/array-config/" + filename
+	var err error
+	f.service.opts.arrays, err = getArrayConfig(context.Background())
+	if err != nil {
+		return fmt.Errorf("invalid array config: %s", err.Error())
+	}
+	if f.service.opts.arrays != nil {
+		f.service.opts.arrays[arrayID].Endpoint = f.server.URL
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+		}
+	}
+
+	fmt.Printf("****************************************************** s.opts.arrays %v\n", f.service.opts.arrays)
+	f.service.systemProbeAll(context.Background())
+	f.adminClient = f.service.adminClients[arrayID]
+	f.adminClient2 = f.service.adminClients[arrayID2]
+	if f.adminClient == nil {
+		return fmt.Errorf("adminClient nil")
+	}
+	if f.adminClient2 == nil {
+		return fmt.Errorf("adminClient2 nil")
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
+	s.Step(`^a VxFlexOS service with timeout (\d+) milliseconds$`, f.aVxFlexOSServiceWithTimeoutMilliseconds)
 	s.Step(`^I call GetPluginInfo$`, f.iCallGetPluginInfo)
 	s.Step(`^I call DynamicArrayChange$`, f.iCallDynamicArrayChange)
 	s.Step(`^a valid DynamicArrayChange occurs$`, f.aValidDynamicArrayChange)
@@ -3583,6 +3676,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call GetReplicationCapabilities$`, f.iCallGetReplicationCapabilities)
 	s.Step(`^I call DeleteStorageProtectionGroup$`, f.iCallDeleteStorageProtectionGroup)
 	s.Step(`^I call DeleteVolume "([^"]*)"$`, f.iCallDeleteVolume)
+	s.Step(`^I use config "([^"]*)"$`, f.iUseConfig)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

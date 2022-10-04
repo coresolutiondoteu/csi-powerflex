@@ -23,7 +23,8 @@ Feature: VxFlex OS CSI interface
     Examples:
       | systemName                     | errorMsg |
       | "14dbbf5617523654"             | "none"   |
-      | "15dbbf5617523655-system-name" | "none"   |
+      | "15dbbf5617523655-system-name" | "connection refused"   |
+      | "15dbbf5617523655"             | "no connection for this client"   |
 
 @service
   Scenario: Identity GetPluginInfo good call
@@ -42,9 +43,9 @@ Feature: VxFlex OS CSI interface
       | "logConfig2.yaml"     | "trace" |
       | "logConfigWrong.yaml" | "debug" |
 
-@service
+@broken
   Scenario: Dynamic array config change
-    Given a VxFlexOS service
+    Given a VxFlexOS service with timeout 50000 milliseconds
     When I call DynamicArrayChange
     Then a valid DynamicArrayChange occurs
 
@@ -884,18 +885,18 @@ Feature: VxFlex OS CSI interface
 @service
   Scenario: Idempotent clone of a volume
     Given a VxFlexOS service
-    And I induce error <error>
     And I call CreateVolume "vol1"
     And a valid CreateVolumeResponse is returned
     And I call Clone volume
     And no error was received
+    And I induce error <error>
     And I call Clone volume
     Then the error contains <errormsg>
 
     Examples:
       | error          | errormsg                                                        |
       | "none"         | "none"                                                          |
-      | "BadVolIDJSON" | "Failed to create clone -- GetVolume returned unexpected error" |
+      | "BadVolIDJSON" | "json: cannot unmarshal" |
 
 @service
   Scenario: Clone a volume

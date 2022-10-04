@@ -573,6 +573,7 @@ func (s *service) CreateReplicationPair(systemID string, name string,
 		}
 	}
 
+	Log.Printf("Replication Pair: %+v", response)
 	pairs, err := adminClient.GetReplicationPairs("")
 	if err != nil {
 		return nil, err
@@ -602,12 +603,71 @@ func (s *service) CreateReplicationConsistencyGroupSnapshot(systemID string, rep
 	}
 
 	response, err := adminClient.CreateReplicationConsistencyGroupSnapshot(replicationGroupID, false)
-	// TODO: Handle duplicate snapshots.
 	if err != nil {
 		return nil, err
 	}
 
 	return response, nil
+}
+
+func (s *service) ExecuteFailoverOnReplicationGroup(systemID string, replicationGroupID string) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	Log.Printf("[ExecuteFailoverOnReplicationGroup]: Executing Failover command")
+
+	return adminClient.ExecuteFailoverOnReplicationGroup(replicationGroupID)
+}
+
+func (s *service) ExecuteSwitchoverOnReplicationGroup(systemID string, replicationGroupID string) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	Log.Printf("[ExecuteSwitchoverOnReplicationGroup]: Executing Switchover (Unplanned Failover)")
+
+	return adminClient.ExecuteSwitchoverOnReplicationGroup(replicationGroupID, false)
+}
+
+func (s *service) ExecuteReverseOnReplicationGroup(systemID string, replicationGroupID string) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	Log.Printf("[ExecuteReverseOnReplicationGroup]: Executing Reverse (Reprotect Local)")
+
+	return adminClient.ExecuteReverseOnReplicationGroup(replicationGroupID)
+}
+
+func (s *service) ExecuteResumeOnReplicationGroup(systemID string, replicationGroupID string, failover bool) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	Log.Printf("[ExecuteReverseOnReplicationGroup]: Resuming Replication Group")
+
+	if failover {
+		Log.Printf("[ExecuteReverseOnReplicationGroup]: In Failover, Restoring...")
+		return adminClient.ExecuteRestoreOnReplicationGroup(replicationGroupID)
+	}
+
+	return adminClient.ExecuteResumeOnReplicationGroup(replicationGroupID)
+}
+
+func (s *service) ExecutePauseOnReplicationGroup(systemID string, replicationGroupID string) error {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	Log.Printf("[ExecutePauseOnReplicationGroup]: Resuming Replication Group")
+
+	return adminClient.ExecutePauseOnReplicationGroup(replicationGroupID, siotypes.ONLY_TRACK_CHANGES)
 }
 
 func (s *service) clearCache() {
@@ -1539,6 +1599,9 @@ func (s *service) getCapacityForAllSystems(ctx context.Context, spName ...string
 	for _, array := range s.opts.arrays {
 		var systemCapacity int64
 		var err error
+		if array.SystemID == "" {
+			Log.Errorf("array %+v has no SystemID", array)
+		}
 
 		if len(spName) > 0 {
 			systemCapacity, err = s.getSystemCapacity(ctx, array.SystemID, spName[0])

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	types "github.com/dell/goscaleio/types/v1"
@@ -209,6 +210,23 @@ func getRouter() http.Handler {
 	scaleioRouter.HandleFunc("/api/Volume/relationship/Statistics", handleVolumeStatistics)
 	scaleioRouter.HandleFunc("{SdcGUID}/relationships/Sdc", handleSystemSdc)
 	return scaleioRouter
+}
+
+func addPreConfiguredVolume(id, name string) {
+	volumeIDToName[id] = name
+	volumeNameToID[name] = id
+	volumeIDToSizeInKB[id] = defaultVolumeSize
+	volumeIDToAncestorID[id] = ""
+	volumeIDToConsistencyGroupID[id] = ""
+	volumeIDToReplicationState[id] = unmarkedForReplication
+}
+
+func removePreConfiguredVolume(id string) {
+	name := volumeIDToName[id]
+	if name != "" {
+		delete(volumeIDToName, id)
+		delete(volumeNameToID, name)
+	}
 }
 
 // handle implements GET /api/types/StoragePool/instances
@@ -422,7 +440,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToAncestorID[resp.ID] = "null"
 		volumeIDToConsistencyGroupID[resp.ID] = "null"
 		volumeIDToSizeInKB[resp.ID] = req.VolumeSizeInKb
-		volumeIDToReplicationState[resp.ID] = "UnmarkedForReplication"
+		volumeIDToReplicationState[resp.ID] = unmarkedForReplication
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
@@ -463,6 +481,8 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 const remoteRCGID = "d02aebc400000000"
+const unmarkedForReplication = "UnmarkedForReplication"
+const defaultVolumeSize = "33554432"
 
 func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -706,8 +726,8 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			volumeNameToID[snapParam.SnapshotName] = id
 			volumeIDToAncestorID[id] = snapParam.VolumeID
 			volumeIDToConsistencyGroupID[id] = cgValue
-			volumeIDToSizeInKB[id] = "32678"
-			volumeIDToReplicationState[id] = "UnmarkedForReplication"
+			volumeIDToSizeInKB[id] = defaultVolumeSize
+			volumeIDToReplicationState[id] = unmarkedForReplication
 		}
 
 		if stepHandlersErrors.WrongVolIDError {
@@ -723,7 +743,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		volumeIDToAncestorID[id] = ""
 		volumeIDToConsistencyGroupID[id] = ""
 		volumeIDToSizeInKB[id] = ""
-		volumeIDToSizeInKB[id] = "32678"
+		volumeIDToSizeInKB[id] = defaultVolumeSize
 		volumeIDToReplicationState[id] = ""
 		if name != "" {
 			volumeNameToID[name] = ""
@@ -733,6 +753,11 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
+		req := types.SetVolumeSizeParam{}
+		decoder := json.NewDecoder(r.Body)
+		_ = decoder.Decode(&req)
+		intValue, _ := strconv.Atoi(req.SizeInGB)
+		volumeIDToSizeInKB[id] = strconv.Itoa(intValue / 1024)
 	case "setVolumeName":
 		//volumeIDToName[id] = snapParam.Name
 		req := types.SetVolumeNameParam{}
@@ -757,7 +782,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		sourceVolume := replicationPairIDToSourceVolume[id]
 		fmt.Printf("sourceVolume %s\n", sourceVolume)
 		fmt.Printf("volumeIDToReplicationState %+v\n", volumeIDToReplicationState)
-		volumeIDToReplicationState[sourceVolume] = "UnmarkedForReplicaton"
+		volumeIDToReplicationState[sourceVolume] = unmarkedForReplication
 		name := replicationPairIDToName[id]
 		delete(replicationPairIDToName, id)
 		delete(replicationPairIDToSourceVolume, id)
@@ -896,7 +921,6 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
 			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
 			replacementMap["__VOLUME_REPLICATION_STATE__"] = volumeIDToReplicationState[id]
-			volumeIDToReplicationState[id] = "UnmarkedForReplication"
 			returnJSONFile("features", "volume.json.template", w, replacementMap)
 		} else {
 			log.Printf("Did not find id %s for %s\n", id, objType)
