@@ -41,7 +41,9 @@ const (
 	badVolumeID                = "Totally Fake ID"
 	badCsiVolumeID             = "ffff-f250"
 	goodVolumeID               = "111"
+	snapVolumeID               = "4dbbf5617523654-111"
 	goodVolumeName             = "vol1"
+	snapVolumeName             = "snapvol1"
 	badVolumeID2               = "9999"
 	badVolumeID3               = "99"
 	altVolumeID                = "222"
@@ -249,9 +251,11 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 		addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
 		addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
 		addPreConfiguredVolume(goodVolumeID, goodVolumeName)
+		addPreConfiguredVolume(snapVolumeID, snapVolumeName)
 		addPreConfiguredVolume(altVolumeID, altVolumeName)
 		addPreConfiguredVolume(badVolumeID2, badVolumeID2)
 		addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
+		addPreConfiguredVolume("72cee42500000003", "vol72cee42500000003")
 	} else {
 		f.server = nil
 	}
@@ -1286,6 +1290,10 @@ func (f *feature) aValidVolume() error {
 	//this prevents the step handler from returning the volume '111' as found in the non default array
 	volIDtoUse := "1234"
 	if stepHandlersErrors.LegacyVolumeConflictError {
+		systemList2 := make([]string, 2)
+		systemList2[0] = arrayID
+		systemList2[1] = arrayID2
+		f.service.volumePrefixToSystems["111"] = systemList2
 		volIDtoUse = goodVolumeID
 	}
 	volumeIDToName[volIDtoUse] = goodVolumeName
@@ -1744,9 +1752,11 @@ func (f *feature) thereAreValidVolumes(n int) error {
 	removePreConfiguredVolume(sdcVolume2)
 	removePreConfiguredVolume(sdcVolume0)
 	removePreConfiguredVolume(goodVolumeID)
+	removePreConfiguredVolume(snapVolumeID)
 	removePreConfiguredVolume(altVolumeID)
 	removePreConfiguredVolume(badVolumeID2)
 	removePreConfiguredVolume(snappedVolumeID)
+	removePreConfiguredVolume("72cee42500000003")
 
 	// Add in the requsted number of volumes
 	idTemplate := "111-11%d"
@@ -2728,13 +2738,18 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 		f.volumeIDList = nil
 	}
 	if stepHandlersErrors.CreateVGSAcrossTwoArrays {
-		f.volumeIDList = []string{"14dbbf5617523654-12235531", "15dbbf5617523655-12345986", "14dbbf5617523654-12456777"}
+		//f.volumeIDList = []string{"14dbbf5617523654-12235531", "15dbbf5617523655-12345986", "14dbbf5617523654-12456777"}
+		f.volumeIDList = []string{"14dbbf5617523654-111", "15dbbf5617523655-222", "14dbbf5617523654-766f6c33"}
 	}
 
 	if stepHandlersErrors.LegacyVolumeConflictError {
 		//need a legacy vol so check map executes
-		f.volumeIDList = []string{"1234"}
-
+		systemList2 := make([]string, 2)
+		systemList2[0] = arrayID
+		systemList2[1] = arrayID2
+		f.service.volumePrefixToSystems["111"] = systemList2
+		// f.volumeIDList = []string{"1234"} TWXXX
+		f.volumeIDList = []string{"111"}
 	}
 	if stepHandlersErrors.CreateVGSLegacyVol {
 		//make sure legacy vol works

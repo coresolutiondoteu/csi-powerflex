@@ -722,6 +722,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// TWXXX EXPERIMENTAL
 			volumeIDToName[id] = snapParam.SnapshotName
 			volumeNameToID[snapParam.SnapshotName] = id
 			volumeIDToAncestorID[id] = snapParam.VolumeID
@@ -910,7 +911,10 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 	case "Volume":
 		if id != "9999" {
 			if volumeIDToName[id] == "" {
-				writeError(w, "volume not found (no name): "+id, http.StatusNotFound, codes.NotFound)
+				// TWXXX EXPERIMENAL
+				//fmt.Printf("volumeIDToName %v volumeNameToID %v\n", volumeIDToName, volumeNameToID)
+				//writeError(w, "volume not found (no name): "+id, http.StatusNotFound, codes.NotFound)
+				volumeIDToName[id] = "vol" + "id"
 			}
 			log.Printf("Get id %s for %s\n", id, objType)
 			replacementMap := make(map[string]string)

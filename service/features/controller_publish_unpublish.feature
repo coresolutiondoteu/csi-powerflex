@@ -18,7 +18,7 @@ Feature: VxFlex OS CSI interface
       | "single-node-single-writer" |
       | "single-node-multi-writer"  |
 
-@wip
+@publish-unpublish
   Scenario: Publish legacy volume that is on non default array
     Given a VxFlexOS service
     And I induce error "LegacyVolumeConflictError"

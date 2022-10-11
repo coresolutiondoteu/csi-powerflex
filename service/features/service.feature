@@ -43,7 +43,7 @@ Feature: VxFlex OS CSI interface
       | "logConfig2.yaml"     | "trace" |
       | "logConfigWrong.yaml" | "debug" |
 
-@broken
+@service
   Scenario: Dynamic array config change
     Given a VxFlexOS service with timeout 50000 milliseconds
     When I call DynamicArrayChange

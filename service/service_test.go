@@ -18,8 +18,8 @@ func TestMain(m *testing.M) {
 	opts := godog.Options{
 		Format: "pretty",
 		Paths:  []string{"features"},
-		//Tags:   "wip",
-		Tags: "service,publish-unpublish,node,delete,list,ephemeral,replication,podmon,vgs",
+		//Tags:   "vg",
+		Tags: "service,publish-unpublish,node,delete,list,ephemeral,replication,pomon,vg,wip",
 	}
 
 	status := godog.TestSuite{
