@@ -422,6 +422,9 @@ func mkdir(path string) (bool, error) {
 		Log.WithField("path", path).Debug("created directory")
 		return true, nil
 	}
+	if err != nil {
+		return false, err
+	}
 	if !st.IsDir() {
 		return false, fmt.Errorf("existing path is not a directory")
 	}
