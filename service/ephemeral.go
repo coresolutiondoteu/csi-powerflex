@@ -16,13 +16,14 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -236,8 +237,7 @@ func (s *service) ephemeralNodeUnpublish(
 		NodeId:   NodeID,
 	})
 	if err != nil {
-
-		return errors.New("Inline ephemeral controller unpublish failed")
+		return errors.New("Inline ephemeral controller unpublish failed: " + err.Error())
 	}
 
 	_, err = s.DeleteVolume(ctx, &csi.DeleteVolumeRequest{
