@@ -1,0 +1,51 @@
+{
+        "id": "d02aebc400000000",
+        "name": "rem-__NAME__",
+        "rpoInSeconds": 60,
+        "protectionDomainId": "928208a900000000",
+        "remoteProtectionDomainId": "1dee83c600000000",
+        "peerMdmId": "d02aebc400000000",
+        "remoteId": "__ID__",
+        "remoteMdmId": "4c33e14b19f0380f",
+        "replicationDirection": "RemoteToLocal",
+        "currConsistMode": "PartiallyConsistent",
+        "freezeState": "Unfrozen",
+        "pauseMode": "None",
+        "lifetimeState": "Normal",
+        "type": "User",
+        "disasterRecoveryState": "None",
+        "remoteDisasterRecoveryState": "None",
+        "targetVolumeAccessMode": "NoAccess",
+        "failoverType": "None",
+        "failoverState": "None",
+        "activeLocal": true,
+        "activeRemote": true,
+        "abstractState": "Ok",
+        "error": 65,
+        "localActivityState": "Active",
+        "remoteActivityState": "Active",
+        "inactiveReason": 11,
+        "links": [
+                {
+                        "rel": "self",
+                        "href": "/api/instances/ReplicationConsistencyGroup::d02aebc400000000"
+                },
+                {
+                        "rel": "/api/ReplicationConsistencyGroup/relationship/Statistics",
+                        "href": "/api/instances/ReplicationConsistencyGroup::d02aebc400000000/relationships/Statistics"
+                },
+                {
+                        "rel": "/api/ReplicationConsistencyGroup/relationship/ReplicationPair",
+                        "href": "/api/instances/ReplicationConsistencyGroup::d02aebc400000000/relationships/ReplicationPair"
+                },
+                {
+                        "rel": "/api/parent/relationship/peerMdmId",
+                        "href": "/api/instances/PeerMdm::d02aebc400000000"
+                },
+                {
+                        "rel": "/api/parent/relationship/protectionDomainId",
+                        "href": "/api/instances/ProtectionDomain::1dee83c600000000"
+                }
+        ]
+}
+

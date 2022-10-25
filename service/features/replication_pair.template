@@ -1,0 +1,17 @@
+{
+        "id": "__ID__",
+        "name": "__NAME__",
+        "remoteId": "9566f43400000002",
+        "userRequestedPauseTransmitInitCopy": false,
+        "remoteCapacityInMB": 49152,
+        "localVolumeId": "__SOURCE_VOLUME__",
+        "remoteVolumeId": "847d98bd00000002",
+        "remoteVolumeName": "replication-target",
+        "replicationConsistencyGroupId": "d303184900000001",
+        "copyType": "Identical",
+        "lifetimeState": "Normal",
+        "peerSystemName": "",
+        "initialCopyState": "Done",
+        "initialCopyPriority": 0
+}
+
