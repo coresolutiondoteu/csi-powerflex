@@ -33,6 +33,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/dell/dell-csi-extensions/podmon"
+	replication "github.com/dell/dell-csi-extensions/replication"
 	volGroupSnap "github.com/dell/dell-csi-extensions/volumeGroupSnapshot"
 	"github.com/dell/gofsutil"
 	"github.com/dell/goscaleio"
@@ -47,15 +48,21 @@ import (
 )
 
 const (
-	arrayID                    = "14dbbf5617523654"
-	arrayID2                   = "15dbbf5617523655-system-name"
+	arrayID = "14dbbf5617523654"
+	//arrayID2                   = "15dbbf5617523655-system-name"
+	arrayID2                   = "15dbbf5617523655"
 	badVolumeID                = "Totally Fake ID"
 	badCsiVolumeID             = "ffff-f250"
 	goodVolumeID               = "111"
+	snapVolumeID               = "4dbbf5617523654-111"
+	goodVolumeName             = "vol1"
+	snapVolumeName             = "snapvol1"
 	badVolumeID2               = "9999"
 	badVolumeID3               = "99"
-	goodVolumeName             = "vol1"
 	altVolumeID                = "222"
+	altVolumeName              = "vol2"
+	snappedVolumeID            = "3456"
+	snappedVolumeName          = "snappedVolume"
 	goodNodeID                 = "9E56672F-2F4B-4A42-BFF4-88B6846FBFDA"
 	goodArrayConfig            = "./features/array-config/config"
 	goodDriverConfig           = "./features/driver-config/logConfig.yaml"
@@ -120,6 +127,10 @@ type feature struct {
 	controllerGetVolumeRequest            *csi.ControllerGetVolumeRequest
 	ControllerGetVolumeResponse           *csi.ControllerGetVolumeResponse
 	validateVolumeHostConnectivityResp    *podmon.ValidateVolumeHostConnectivityResponse
+	replicationCapabilitiesResponse       *replication.GetReplicationCapabilityResponse
+	createRemoteVolumeResponse            *replication.CreateRemoteVolumeResponse
+	createStorageProtectionGroupResponse  *replication.CreateStorageProtectionGroupResponse
+	deleteStorageProtectionGroupResponse  *replication.DeleteStorageProtectionGroupResponse
 	listedVolumeIDs                       map[string]bool
 	listVolumesNextTokenCache             string
 	invalidVolumeID, noVolumeID, noNodeID bool
@@ -143,7 +154,12 @@ func (f *feature) checkGoRoutines(tag string) {
 }
 
 func (f *feature) aVxFlexOSService() error {
+	return f.aVxFlexOSServiceWithTimeoutMilliseconds(50)
+}
+
+func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	f.checkGoRoutines("start aVxFlexOSService")
+	goscaleio.ClientConnectTimeout = time.Duration(millis) * time.Millisecond
 	// Save off the admin client and the system
 	if f.service != nil {
 		adminClient := f.service.adminClients[arrayID]
@@ -178,6 +194,7 @@ func (f *feature) aVxFlexOSService() error {
 	f.controllerGetCapabilitiesResponse = nil
 	f.validateVolumeCapabilitiesResponse = nil
 	f.validateVolumeHostConnectivityResp = nil
+	f.replicationCapabilitiesResponse = nil
 	f.service = nil
 	f.createVolumeRequest = nil
 	f.publishVolumeRequest = nil
@@ -223,6 +240,7 @@ func (f *feature) aVxFlexOSService() error {
 
 	// configure variables in the driver
 	publishGetMappedVolMaxRetry = 2
+	getMappedVolDelay = 10 * time.Millisecond
 
 	// Get or reuse the cached service
 	f.getService()
@@ -238,8 +256,19 @@ func (f *feature) aVxFlexOSService() error {
 		}
 		if f.service.opts.arrays != nil {
 			f.service.opts.arrays[arrayID].Endpoint = f.server.URL
-			f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+			if f.service.opts.arrays[arrayID2] != nil {
+				f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+			}
 		}
+		addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
+		addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
+		addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
+		addPreConfiguredVolume(goodVolumeID, goodVolumeName)
+		addPreConfiguredVolume(snapVolumeID, snapVolumeName)
+		addPreConfiguredVolume(altVolumeID, altVolumeName)
+		addPreConfiguredVolume(badVolumeID2, badVolumeID2)
+		addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
+		addPreConfiguredVolume("72cee42500000003", "vol72cee42500000003")
 	} else {
 		f.server = nil
 	}
@@ -278,11 +307,13 @@ func (f *feature) getService() *service {
 	if DriverConfigParamsFile != goodDriverConfig {
 		DriverConfigParamsFile = goodDriverConfig
 	}
+	fmt.Printf("ArrayConfigFile %s DriverConfigParamsFile %s\n", ArrayConfigFile, DriverConfigParamsFile)
 
 	if f.service != nil {
 		return f.service
 	}
 	var opts Opts
+	opts.arrays = make(map[string]*ArrayConnectionData)
 	ctx := new(context.Context)
 	var err error
 	opts.arrays, err = getArrayConfig(*ctx)
@@ -431,8 +462,8 @@ func (f *feature) iCallGetPluginInfo() error {
 }
 
 func (f *feature) iCallcheckVolumesMap(id string) error {
+	f.service.volumePrefixToSystems["123"] = []string{arrayID2}
 	f.err = f.service.checkVolumesMap(id)
-
 	return nil
 
 }
@@ -981,6 +1012,10 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.NoVolError = true
 	case "SetVolumeSizeError":
 		stepHandlersErrors.SetVolumeSizeError = true
+	case "PeerMdmError":
+		stepHandlersErrors.PeerMdmError = true
+	case "CreateVolumeError":
+		stepHandlersErrors.CreateVolumeError = true
 	case "NoSymlinkForNodePublish":
 		cmd := exec.Command("rm", "-rf", nodePublishSymlinkDir)
 		_, err := cmd.CombinedOutput()
@@ -1099,6 +1134,38 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.CreateVGSBadTimeError = true
 	case "CreateSplitVGSError":
 		stepHandlersErrors.CreateSplitVGSError = true
+	case "BadRemoteSystemIDError":
+		stepHandlersErrors.BadRemoteSystemIDError = true
+	case "ProbePrimaryError":
+		f.service.adminClients[arrayID] = nil
+		f.service.systems[arrayID] = nil
+		stepHandlersErrors.PodmonControllerProbeError = true
+	case "ProbeSecondaryError":
+		f.service.adminClients[arrayID2] = nil
+		f.service.systems[arrayID2] = nil
+		stepHandlersErrors.PodmonControllerProbeError = true
+	case "ReplicationConsistencyGroupError":
+		stepHandlersErrors.ReplicationConsistencyGroupError = true
+	case "GetReplicationConsistencyGroupError":
+		stepHandlersErrors.GetReplicationConsistencyGroupError = true
+	case "NoProtectionDomainError":
+		stepHandlersErrors.NoProtectionDomainError = true
+	case "EmptyParametersListError":
+		stepHandlersErrors.EmptyParametersListError = true
+	case "ReplicationPairError":
+		stepHandlersErrors.ReplicationPairError = true
+	case "GetReplicationPairError":
+		stepHandlersErrors.GetReplicationPairError = true
+	case "RemoteReplicationConsistencyGroupError":
+		stepHandlersErrors.RemoteReplicationConsistencyGroupError = true
+	case "RemoteRCGBadNameError":
+		stepHandlersErrors.RemoteRCGBadNameError = true
+	case "RemoveRCGError":
+		stepHandlersErrors.RemoveRCGError = true
+	case "NoDeleteReplicationPair":
+		stepHandlersErrors.NoDeleteReplicationPair = true
+	case "BadRemoteSystem":
+		stepHandlersErrors.BadRemoteSystem = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -1245,10 +1312,17 @@ func (f *feature) aValidVolume() error {
 	//this prevents the step handler from returning the volume '111' as found in the non default array
 	volIDtoUse := "1234"
 	if stepHandlersErrors.LegacyVolumeConflictError {
+		systemList2 := make([]string, 2)
+		systemList2[0] = arrayID
+		systemList2[1] = arrayID2
+		f.service.volumePrefixToSystems["111"] = systemList2
 		volIDtoUse = goodVolumeID
 	}
 	volumeIDToName[volIDtoUse] = goodVolumeName
 	volumeNameToID[goodVolumeName] = volIDtoUse
+	volumeIDToSizeInKB[volIDtoUse] = defaultVolumeSize
+	volumeIDToReplicationState[volIDtoUse] = unmarkedForReplication
+
 	return nil
 }
 
@@ -1389,6 +1463,25 @@ func (f *feature) iCallDeleteVolumeWith(arg1 string) error {
 	return nil
 }
 
+func (f *feature) iCallDeleteVolume(name string) error {
+	for id, name := range volumeIDToName {
+		fmt.Printf("volIDToName id %s name %s\n", id, name)
+	}
+	for name, id := range volumeNameToID {
+		fmt.Printf("volNameToID name %s id %s\n", name, id)
+	}
+	ctx := new(context.Context)
+	req := f.getControllerDeleteVolumeRequest("single-writer")
+	id := arrayID + "-" + volumeNameToID[name]
+	log.Printf("iCallDeleteVolume name %s to ID %s", name, id)
+	req.VolumeId = id
+	f.deleteVolumeResponse, f.err = f.service.DeleteVolume(*ctx, req)
+	if f.err != nil {
+		fmt.Printf("DeleteVolume error: %s", f.err)
+	}
+	return nil
+}
+
 func (f *feature) aValidDeleteVolumeResponseIsReturned() error {
 	if f.deleteVolumeResponse == nil {
 		return errors.New("expected deleteVolumeResponse (with no contents)but did not get one")
@@ -1399,6 +1492,9 @@ func (f *feature) aValidDeleteVolumeResponseIsReturned() error {
 func (f *feature) aValidListVolumesResponseIsReturned() error {
 	if f.listVolumesResponse == nil {
 		return errors.New("expected a non-nil listVolumesResponse, but it was nil")
+	}
+	for _, vol := range f.listVolumesResponse.Entries {
+		fmt.Printf("vol %s\n", vol.GetVolume().VolumeId)
 	}
 	return nil
 }
@@ -1415,6 +1511,7 @@ func (f *feature) iCallGetCapacityWithStoragePool(arg1 string) error {
 	if arg1 != "" {
 		parameters := make(map[string]string)
 		parameters[KeyStoragePool] = arg1
+		parameters[KeySystemID] = arrayID
 		req.Parameters = parameters
 	}
 	log.Printf("Calling GetCapacity")
@@ -1672,6 +1769,18 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVoltypeAccessFstype(voltype
 // thereAreValidVolumes creates the requested number of volumes
 // for the test scenario, using a suffix.
 func (f *feature) thereAreValidVolumes(n int) error {
+	// Remove the pre-configured volumes
+	removePreConfiguredVolume(sdcVolume1)
+	removePreConfiguredVolume(sdcVolume2)
+	removePreConfiguredVolume(sdcVolume0)
+	removePreConfiguredVolume(goodVolumeID)
+	removePreConfiguredVolume(snapVolumeID)
+	removePreConfiguredVolume(altVolumeID)
+	removePreConfiguredVolume(badVolumeID2)
+	removePreConfiguredVolume(snappedVolumeID)
+	removePreConfiguredVolume("72cee42500000003")
+
+	// Add in the requsted number of volumes
 	idTemplate := "111-11%d"
 	nameTemplate := "vol%d"
 	for i := 0; i < n; i++ {
@@ -1679,6 +1788,8 @@ func (f *feature) thereAreValidVolumes(n int) error {
 		id := fmt.Sprintf(idTemplate, i)
 		volumeIDToName[id] = id
 		volumeNameToID[name] = name
+		volumeIDToSizeInKB[id] = defaultVolumeSize
+		volumeIDToReplicationState[id] = unmarkedForReplication
 	}
 	return nil
 }
@@ -2649,13 +2760,18 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 		f.volumeIDList = nil
 	}
 	if stepHandlersErrors.CreateVGSAcrossTwoArrays {
-		f.volumeIDList = []string{"14dbbf5617523654-12235531", "15dbbf5617523655-12345986", "14dbbf5617523654-12456777"}
+		//f.volumeIDList = []string{"14dbbf5617523654-12235531", "15dbbf5617523655-12345986", "14dbbf5617523654-12456777"}
+		f.volumeIDList = []string{"14dbbf5617523654-111", "15dbbf5617523655-222", "14dbbf5617523654-766f6c33"}
 	}
 
 	if stepHandlersErrors.LegacyVolumeConflictError {
 		//need a legacy vol so check map executes
-		f.volumeIDList = []string{"1234"}
-
+		systemList2 := make([]string, 2)
+		systemList2[0] = arrayID
+		systemList2[1] = arrayID2
+		f.service.volumePrefixToSystems["111"] = systemList2
+		// f.volumeIDList = []string{"1234"} TWXXX
+		f.volumeIDList = []string{"111"}
 	}
 	if stepHandlersErrors.CreateVGSLegacyVol {
 		//make sure legacy vol works
@@ -2836,6 +2952,8 @@ func (f *feature) aValidSnapshot() error {
 	volumeIDToName[goodSnapID] = "snap4"
 	volumeNameToID["snap4"] = goodSnapID
 	volumeIDToAncestorID[goodSnapID] = goodVolumeID
+	volumeIDToSizeInKB[goodSnapID] = defaultVolumeSize
+	volumeIDToReplicationState[goodSnapID] = unmarkedForReplication
 	return nil
 }
 
@@ -2858,6 +2976,8 @@ func (f *feature) aValidSnapshotConsistencyGroup() error {
 	volumeNameToID["snap4"] = goodSnapID
 	volumeIDToAncestorID[goodSnapID] = goodVolumeID
 	volumeIDToConsistencyGroupID[goodSnapID] = goodVolumeID
+	volumeIDToSizeInKB[goodSnapID] = "8192"
+	volumeIDToReplicationState[goodSnapID] = unmarkedForReplication
 
 	// second snapshot in CG; this looks weird, but we give same ID to snap
 	// as it's ancestor so that we can publish the volume
@@ -2865,6 +2985,8 @@ func (f *feature) aValidSnapshotConsistencyGroup() error {
 	volumeNameToID["snap5"] = altSnapID
 	volumeIDToAncestorID[altSnapID] = altVolumeID
 	volumeIDToConsistencyGroupID[altSnapID] = goodVolumeID
+	volumeIDToSizeInKB[altSnapID] = "8192"
+	volumeIDToReplicationState[altSnapID] = unmarkedForReplication
 
 	// only return the SDC mappings on the altSnapID
 	req := f.getControllerPublishVolumeRequest("single-writer")
@@ -2918,6 +3040,8 @@ func (f *feature) thereAreValidSnapshotsOfVolume(nsnapshots int, volume string) 
 		volumeIDToName[id] = name
 		volumeNameToID[name] = id
 		volumeIDToAncestorID[id] = volumeID
+		volumeIDToSizeInKB[id] = "8192"
+		volumeIDToReplicationState[id] = unmarkedForReplication
 	}
 	return nil
 }
@@ -2927,11 +3051,13 @@ func (f *feature) iCallListSnapshotsWithMaxentriesAndStartingtoken(maxEntriesStr
 	if err != nil {
 		return nil
 	}
-	ctx := new(context.Context)
+	goscaleio.ClientConnectTimeout = 50000 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	req := &csi.ListSnapshotsRequest{MaxEntries: int32(maxEntries), StartingToken: startingTokenString}
 	f.listSnapshotsRequest = req
 	log.Printf("Calling ListSnapshots with req=%+v", f.listVolumesRequest)
-	f.listSnapshotsResponse, f.err = f.service.ListSnapshots(*ctx, req)
+	f.listSnapshotsResponse, f.err = f.service.ListSnapshots(ctx, req)
 	if f.err != nil {
 		log.Printf("ListSnapshots called failed: %s\n", f.err.Error())
 	}
@@ -3029,23 +3155,35 @@ func (f *feature) iInvalidateTheProbeCache() error {
 
 	if stepHandlersErrors.NoEndpointError {
 		f.service.opts.arrays[arrayID].Endpoint = ""
-		f.service.opts.arrays[arrayID2].Endpoint = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Endpoint = ""
+		}
 		f.service.opts.AutoProbe = true
 	} else if stepHandlersErrors.NoUserError {
 		f.service.opts.arrays[arrayID].Username = ""
-		f.service.opts.arrays[arrayID2].Username = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Username = ""
+		}
 	} else if stepHandlersErrors.NoPasswordError {
 		f.service.opts.arrays[arrayID].Password = ""
-		f.service.opts.arrays[arrayID2].Password = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Password = ""
+		}
 	} else if stepHandlersErrors.NoSysNameError {
 		f.service.opts.arrays[arrayID].SystemID = ""
-		f.service.opts.arrays[arrayID2].SystemID = ""
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].SystemID = ""
+		}
 	} else if stepHandlersErrors.WrongSysNameError {
 		f.service.opts.arrays[arrayID].SystemID = "WrongSystemName"
-		f.service.opts.arrays[arrayID2].SystemID = "WrongSystemName"
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].SystemID = "WrongSystemName"
+		}
 	} else if testControllerHasNoConnection {
 		f.service.adminClients[arrayID] = nil
-		f.service.adminClients[arrayID2] = nil
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.adminClients[arrayID2] = nil
+		}
 	}
 
 	return nil
@@ -3054,6 +3192,7 @@ func (f *feature) iInvalidateTheProbeCache() error {
 func (f *feature) iCallupdateVolumesMap(systemID string) error {
 
 	f.service.volumePrefixToSystems["123"] = []string{"123456789"}
+	fmt.Printf("volumePrefixToSystems %v\n", f.service.volumePrefixToSystems)
 	f.err = f.service.UpdateVolumePrefixToSystemsMap(systemID)
 	return nil
 }
@@ -3264,9 +3403,176 @@ func (f *feature) iCallSetQoSParameters(systemID string, sdcID string, bandwidth
 	return nil
 }
 
+func (f *feature) aRemoteVolumeIsReturned(arg1 string) error {
+	if arg1 == "false" {
+		return nil
+	}
+	if f.err != nil {
+		return f.err
+	}
+	return nil
+}
+
+func (f *feature) iCallCreateRemoteVolume() error {
+	ctx := new(context.Context)
+	req := &replication.CreateRemoteVolumeRequest{}
+	if f.createVolumeResponse == nil {
+		return errors.New("iCallCreateRemoteVolume: f.createVolumeResponse is nil")
+	}
+	req.VolumeHandle = f.createVolumeResponse.Volume.VolumeId
+	if stepHandlersErrors.NoVolIDError {
+		req.VolumeHandle = ""
+	}
+	if stepHandlersErrors.BadVolIDError {
+		req.VolumeHandle = "/"
+	}
+	req.Parameters = map[string]string{
+		"replication.storage.dell.com/remoteStoragePool": "viki_pool_HDD_20181031",
+		"replication.storage.dell.com/remoteSystem":      "15dbbf5617523655",
+	}
+	f.createRemoteVolumeResponse, f.err = f.service.CreateRemoteVolume(*ctx, req)
+	if f.err != nil {
+		fmt.Printf("CreateRemoteVolumeRequest returned error: %s", f.err)
+	} else {
+		fmt.Printf("CreateRemoteVolumeRequest returned %+v", f.createRemoteVolumeResponse)
+	}
+	return nil
+}
+
+func (f *feature) iCallCreateStorageProtectionGroup() error {
+	ctx := new(context.Context)
+	parameters := make(map[string]string)
+	if !stepHandlersErrors.EmptyParametersListError {
+		parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
+		parameters["replication.storage.dell.com/rpo"] = "60"
+	}
+	if stepHandlersErrors.BadRemoteSystem {
+		parameters["replication.storage.dell.com/remoteSystem"] = "xxx"
+	}
+	req := &replication.CreateStorageProtectionGroupRequest{
+		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
+		Parameters:   parameters,
+	}
+	fmt.Printf("CreateStorageProtectionGroupRequest %+v\n", req)
+	fmt.Printf("StorageProtectionGroupRequest volumeHandle %s\n", req.VolumeHandle)
+	if stepHandlersErrors.NoVolIDError {
+		req.VolumeHandle = ""
+	}
+	if stepHandlersErrors.BadVolIDError {
+		req.VolumeHandle = "0/"
+	}
+	f.createStorageProtectionGroupResponse, f.err = f.service.CreateStorageProtectionGroup(*ctx, req)
+	return nil
+}
+
+func (f *feature) iCallGetReplicationCapabilities() error {
+	req := &replication.GetReplicationCapabilityRequest{}
+	ctx := new(context.Context)
+	f.replicationCapabilitiesResponse, f.err = f.service.GetReplicationCapabilities(*ctx, req)
+	log.Printf("GetReplicationCapabilities returned %+v", f.replicationCapabilitiesResponse)
+	return nil
+}
+
+func (f *feature) iCallDeleteStorageProtectionGroup() error {
+	ctx := new(context.Context)
+	attributes := make(map[string]string)
+	attributes["systemName"] = arrayID
+	req := &replication.DeleteStorageProtectionGroupRequest{
+		ProtectionGroupId:         f.createStorageProtectionGroupResponse.LocalProtectionGroupId,
+		ProtectionGroupAttributes: attributes,
+	}
+	f.deleteStorageProtectionGroupResponse, f.err = f.service.DeleteStorageProtectionGroup(*ctx, req)
+	return nil
+}
+
+func (f *feature) aReplicationCapabilitiesStructureIsReturned(arg1 string) error {
+	if f.err != nil {
+		return f.err
+	}
+	var createRemoteVolume, createProtectionGroup, deleteProtectionGroup, monitorProtectionGroup, replicationActionExecution bool
+	for _, cap := range f.replicationCapabilitiesResponse.GetCapabilities() {
+		if cap == nil {
+			continue
+		}
+		rpc := cap.GetRpc()
+		if rpc == nil {
+			continue
+		}
+		ty := rpc.GetType()
+		switch ty {
+		case replication.ReplicationCapability_RPC_CREATE_REMOTE_VOLUME:
+			createRemoteVolume = true
+		case replication.ReplicationCapability_RPC_CREATE_PROTECTION_GROUP:
+			createProtectionGroup = true
+		case replication.ReplicationCapability_RPC_DELETE_PROTECTION_GROUP:
+			deleteProtectionGroup = true
+		case replication.ReplicationCapability_RPC_MONITOR_PROTECTION_GROUP:
+			monitorProtectionGroup = true
+		case replication.ReplicationCapability_RPC_REPLICATION_ACTION_EXECUTION:
+			replicationActionExecution = true
+		}
+	}
+	var failoverRemote, unplannedFailoverLocal, reprotectLocal, suspend, resume, sync bool
+	for _, act := range f.replicationCapabilitiesResponse.GetActions() {
+		if act == nil {
+			continue
+		}
+		ty := act.GetType()
+		switch ty {
+		case replication.ActionTypes_FAILOVER_REMOTE:
+			failoverRemote = true
+		case replication.ActionTypes_UNPLANNED_FAILOVER_LOCAL:
+			unplannedFailoverLocal = true
+		case replication.ActionTypes_REPROTECT_LOCAL:
+			reprotectLocal = true
+		case replication.ActionTypes_SUSPEND:
+			suspend = true
+		case replication.ActionTypes_RESUME:
+			resume = true
+		case replication.ActionTypes_SYNC:
+			sync = true
+		}
+	}
+	if !createRemoteVolume || !createProtectionGroup || !deleteProtectionGroup || !replicationActionExecution || !monitorProtectionGroup {
+		return fmt.Errorf("Not all expected ReplicationCapability_RPC capabilities were returned")
+	}
+	if !failoverRemote || !unplannedFailoverLocal || !reprotectLocal || !suspend || !resume || !sync {
+		return fmt.Errorf("Not all expected ReplicationCapbility_RPC actions were returned")
+	}
+	return nil
+}
+
+func (f *feature) iUseConfig(filename string) error {
+	ArrayConfigFile = "./features/array-config/" + filename
+	var err error
+	f.service.opts.arrays, err = getArrayConfig(context.Background())
+	if err != nil {
+		return fmt.Errorf("invalid array config: %s", err.Error())
+	}
+	if f.service.opts.arrays != nil {
+		f.service.opts.arrays[arrayID].Endpoint = f.server.URL
+		if f.service.opts.arrays[arrayID2] != nil {
+			f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+		}
+	}
+
+	fmt.Printf("****************************************************** s.opts.arrays %v\n", f.service.opts.arrays)
+	f.service.systemProbeAll(context.Background())
+	f.adminClient = f.service.adminClients[arrayID]
+	f.adminClient2 = f.service.adminClients[arrayID2]
+	if f.adminClient == nil {
+		return fmt.Errorf("adminClient nil")
+	}
+	if f.adminClient2 == nil {
+		return fmt.Errorf("adminClient2 nil")
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
+	s.Step(`^a VxFlexOS service with timeout (\d+) milliseconds$`, f.aVxFlexOSServiceWithTimeoutMilliseconds)
 	s.Step(`^I call GetPluginInfo$`, f.iCallGetPluginInfo)
 	s.Step(`^I call DynamicArrayChange$`, f.iCallDynamicArrayChange)
 	s.Step(`^a valid DynamicArrayChange occurs$`, f.aValidDynamicArrayChange)
@@ -3419,6 +3725,14 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call getProtectionDomainIDFromName "([^"]*)" "([^"]*)"$`, f.iCallgetProtectionDomainIDFromName)
 	s.Step(`^I call getArrayInstallationID "([^"]*)"$`, f.iCallgetArrayInstallationID)
 	s.Step(`^I call setQoSParameters with systemID "([^"]*)" sdcID "([^"]*)" bandwidthLimit "([^"]*)" iopsLimit "([^"]*)" volumeName "([^"]*)" csiVolID "([^"]*)" nodeID "([^"]*)"$`, f.iCallSetQoSParameters)
+	s.Step(`^a "([^"]*)" remote volume is returned$`, f.aRemoteVolumeIsReturned)
+	s.Step(`^a "([^"]*)" replication capabilities structure is returned$`, f.aReplicationCapabilitiesStructureIsReturned)
+	s.Step(`^I call CreateRemoteVolume$`, f.iCallCreateRemoteVolume)
+	s.Step(`^I call CreateStorageProtectionGroup$`, f.iCallCreateStorageProtectionGroup)
+	s.Step(`^I call GetReplicationCapabilities$`, f.iCallGetReplicationCapabilities)
+	s.Step(`^I call DeleteStorageProtectionGroup$`, f.iCallDeleteStorageProtectionGroup)
+	s.Step(`^I call DeleteVolume "([^"]*)"$`, f.iCallDeleteVolume)
+	s.Step(`^I use config "([^"]*)"$`, f.iUseConfig)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

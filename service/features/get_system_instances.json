@@ -184,7 +184,7 @@
   {
     "perfProfile": "Default",
     "installId": "15dbbf5617523655",
-    "name": "15dbbf5617523655-system-name",
+    "name": "remotesystem",
     "systemVersionName": "DellEMC ScaleIO Version: R2_6.0.133",
     "capacityAlertHighThresholdPercent": 80,
     "capacityAlertCriticalThresholdPercent": 90,
@@ -273,33 +273,32 @@
       "master": {
         "versionInfo": "R2_6.0.0",
         "managementIPs": [
-          "127.1.1.4"
+          "127.1.1.6"
         ],
         "ips": [
-          "127.1.1.4"
+          "127.1.1.6"
         ],
         "virtualInterfaces": [],
         "opensslVersion": "OpenSSL 1.0.2k-fips  26 Jan 2017",
         "role": "Manager",
-        "id": "15dbbf5617523655",
-	"name": "15dbbf5617523655-system-name",
+        "id": "0873f5bd5c3dd9a1",
         "port": 9011
       },
       "worker": [
         {
           "versionInfo": "R2_6.0.0",
           "managementIPs": [
-            "127.1.1.5"
+            "127.1.1.7"
           ],
           "ips": [
-            "127.1.1.5"
+            "127.1.1.7"
           ],
           "virtualInterfaces": [],
           "opensslVersion": "OpenSSL 1.0.2k-fips  26 Jan 2017",
           "role": "Manager",
           "status": "Normal",
-          "name": "127.1.1.5",
-          "id": "7e521a811a247d11",
+          "name": "127.1.1.7",
+          "id": "7e521a811a247d10",
           "port": 9011
         }
       ],
@@ -307,22 +306,21 @@
         {
           "versionInfo": "R2_6.0.0",
           "managementIPs": [
-            "127.1.1.9"
+            "127.1.1.8"
           ],
           "ips": [
-            "127.1.1.9"
+            "127.1.1.8"
           ],
           "opensslVersion": "N/A",
           "role": "TieBreaker",
           "status": "Normal",
-          "id": "4542577337090b83",
+          "id": "4542577337090b82",
           "port": 9011
         }
       ],
       "goodNodesNum": 3,
       "goodReplicasNum": 2,
-      "id": "15dbbf5617523655",
-      "name": "15dbbf5617523655-system-name"
+      "id": "1503005277137548884"
     },
     "sdcSdsConnectivityInfo": {
       "sdcSdsConnectivityStatus": "AllConnected",
@@ -342,7 +340,6 @@
     "enterpriseFeaturesEnabled": true,
     "isInitialLicense": true,
     "id": "15dbbf5617523655",
-    "name": "15dbbf5617523655-system-name",
     "links": [
       {
         "rel": "self",
@@ -365,7 +362,7 @@
         "href": "/api/instances/System::15dbbf5617523655/relationships/User"
       }
     ]
-  }
+  }  
 ]
 
 

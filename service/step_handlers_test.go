@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	types "github.com/dell/goscaleio/types/v1"
@@ -34,60 +35,74 @@ var (
 	sdcMappingsID string
 
 	stepHandlersErrors struct {
-		FindVolumeIDError             bool
-		GetVolByIDError               bool
-		GetStoragePoolsError          bool
-		PodmonFindSdcError            bool
-		PodmonVolumeStatisticsError   bool
-		PodmonNoNodeIDError           bool
-		PodmonNoSystemError           bool
-		PodmonNoVolumeNoNodeIDError   bool
-		PodmonControllerProbeError    bool
-		PodmonNodeProbeError          bool
-		PodmonVolumeError             bool
-		GetSystemSdcError             bool
-		GetSdcInstancesError          bool
-		MapSdcError                   bool
-		RemoveMappedSdcError          bool
-		SDCLimitsError                bool
-		SIOGatewayVolumeNotFoundError bool
-		GetStatisticsError            bool
-		CreateSnapshotError           bool
-		RemoveVolumeError             bool
-		VolumeInstancesError          bool
-		BadVolIDError                 bool
-		NoCsiVolIDError               bool
-		WrongVolIDError               bool
-		WrongSystemError              bool
-		NoEndpointError               bool
-		NoUserError                   bool
-		NoPasswordError               bool
-		NoSysNameError                bool
-		NoAdminError                  bool
-		WrongSysNameError             bool
-		NoVolumeIDError               bool
-		SetVolumeSizeError            bool
-		systemNameMatchingError       bool
-		LegacyVolumeConflictError     bool
-		VolumeIDTooShortError         bool
-		EmptyEphemeralID              bool
-		IncorrectEphemeralID          bool
-		TooManyDashesVolIDError       bool
-		CorrectFormatBadCsiVolID      bool
-		EmptySysID                    bool
-		VolIDListEmptyError           bool
-		CreateVGSNoNameError          bool
-		CreateVGSNameTooLongError     bool
-		CreateVGSLegacyVol            bool
-		CreateVGSAcrossTwoArrays      bool
-		CreateVGSBadTimeError         bool
-		CreateSplitVGSError           bool
-		BadVolIDJSON                  bool
-		BadMountPathError             bool
-		NoMountPathError              bool
-		NoVolIDError                  bool
-		NoVolIDSDCError               bool
-		NoVolError                    bool
+		FindVolumeIDError                      bool
+		GetVolByIDError                        bool
+		GetStoragePoolsError                   bool
+		PodmonFindSdcError                     bool
+		PodmonVolumeStatisticsError            bool
+		PodmonNoNodeIDError                    bool
+		PodmonNoSystemError                    bool
+		PodmonNoVolumeNoNodeIDError            bool
+		PodmonControllerProbeError             bool
+		PodmonNodeProbeError                   bool
+		PodmonVolumeError                      bool
+		GetSystemSdcError                      bool
+		GetSdcInstancesError                   bool
+		MapSdcError                            bool
+		RemoveMappedSdcError                   bool
+		SDCLimitsError                         bool
+		SIOGatewayVolumeNotFoundError          bool
+		GetStatisticsError                     bool
+		CreateSnapshotError                    bool
+		RemoveVolumeError                      bool
+		VolumeInstancesError                   bool
+		BadVolIDError                          bool
+		NoCsiVolIDError                        bool
+		WrongVolIDError                        bool
+		WrongSystemError                       bool
+		NoEndpointError                        bool
+		NoUserError                            bool
+		NoPasswordError                        bool
+		NoSysNameError                         bool
+		NoAdminError                           bool
+		WrongSysNameError                      bool
+		NoVolumeIDError                        bool
+		SetVolumeSizeError                     bool
+		systemNameMatchingError                bool
+		LegacyVolumeConflictError              bool
+		VolumeIDTooShortError                  bool
+		EmptyEphemeralID                       bool
+		IncorrectEphemeralID                   bool
+		TooManyDashesVolIDError                bool
+		CorrectFormatBadCsiVolID               bool
+		EmptySysID                             bool
+		VolIDListEmptyError                    bool
+		CreateVGSNoNameError                   bool
+		CreateVGSNameTooLongError              bool
+		CreateVGSLegacyVol                     bool
+		CreateVGSAcrossTwoArrays               bool
+		CreateVGSBadTimeError                  bool
+		CreateSplitVGSError                    bool
+		BadVolIDJSON                           bool
+		BadMountPathError                      bool
+		NoMountPathError                       bool
+		NoVolIDError                           bool
+		NoVolIDSDCError                        bool
+		NoVolError                             bool
+		PeerMdmError                           bool
+		CreateVolumeError                      bool
+		BadRemoteSystemIDError                 bool
+		NoProtectionDomainError                bool
+		GetReplicationConsistencyGroupError    bool
+		ReplicationConsistencyGroupError       bool
+		ReplicationPairError                   bool
+		GetReplicationPairError                bool
+		RemoteReplicationConsistencyGroupError bool
+		RemoteRCGBadNameError                  bool
+		EmptyParametersListError               bool
+		RemoveRCGError                         bool
+		NoDeleteReplicationPair                bool
+		BadRemoteSystem                        bool
 	}
 )
 
@@ -111,6 +126,13 @@ func getHandler() http.Handler {
 	volumeIDToAncestorID = make(map[string]string)
 	volumeNameToID = make(map[string]string)
 	volumeIDToConsistencyGroupID = make(map[string]string)
+	volumeIDToSizeInKB = make(map[string]string)
+	volumeIDToReplicationState = make(map[string]string)
+	rcgIDToName = make(map[string]string)
+	rcgNameToID = make(map[string]string)
+	replicationPairIDToName = make(map[string]string)
+	replicationPairNameToID = make(map[string]string)
+	replicationPairIDToSourceVolume = make(map[string]string)
 	debug = false
 	stepHandlersErrors.FindVolumeIDError = false
 	stepHandlersErrors.GetVolByIDError = false
@@ -166,6 +188,20 @@ func getHandler() http.Handler {
 	stepHandlersErrors.NoVolIDError = false
 	stepHandlersErrors.NoVolIDSDCError = false
 	stepHandlersErrors.NoVolError = false
+	stepHandlersErrors.PeerMdmError = false
+	stepHandlersErrors.CreateVolumeError = false
+	stepHandlersErrors.BadRemoteSystemIDError = false
+	stepHandlersErrors.NoProtectionDomainError = false
+	stepHandlersErrors.GetReplicationConsistencyGroupError = false
+	stepHandlersErrors.ReplicationConsistencyGroupError = false
+	stepHandlersErrors.ReplicationPairError = false
+	stepHandlersErrors.GetReplicationPairError = false
+	stepHandlersErrors.EmptyParametersListError = false
+	stepHandlersErrors.RemoteReplicationConsistencyGroupError = false
+	stepHandlersErrors.RemoteRCGBadNameError = false
+	stepHandlersErrors.RemoveRCGError = false
+	stepHandlersErrors.NoDeleteReplicationPair = false
+	stepHandlersErrors.BadRemoteSystem = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -181,11 +217,31 @@ func getRouter() http.Handler {
 	scaleioRouter.HandleFunc("/api/version", handleVersion)
 	scaleioRouter.HandleFunc("/api/types/System/instances", handleSystemInstances)
 	scaleioRouter.HandleFunc("/api/types/Volume/instances", handleVolumeInstances)
+	scaleioRouter.HandleFunc("/api/types/PeerMdm/instances", handlePeerMdmInstances)
 	scaleioRouter.HandleFunc("/api/types/StoragePool/instances", handleStoragePoolInstances)
+	scaleioRouter.HandleFunc("/api/types/ReplicationConsistencyGroup/instances", handleReplicationConsistencyGroupInstances)
+	scaleioRouter.HandleFunc("/api/types/ReplicationPair/instances", handleReplicationPairInstances)
 	scaleioRouter.HandleFunc("{Volume}/relationship/Statistics", handleVolumeStatistics)
 	scaleioRouter.HandleFunc("/api/Volume/relationship/Statistics", handleVolumeStatistics)
 	scaleioRouter.HandleFunc("{SdcGUID}/relationships/Sdc", handleSystemSdc)
 	return scaleioRouter
+}
+
+func addPreConfiguredVolume(id, name string) {
+	volumeIDToName[id] = name
+	volumeNameToID[name] = id
+	volumeIDToSizeInKB[id] = defaultVolumeSize
+	volumeIDToAncestorID[id] = ""
+	volumeIDToConsistencyGroupID[id] = ""
+	volumeIDToReplicationState[id] = unmarkedForReplication
+}
+
+func removePreConfiguredVolume(id string) {
+	name := volumeIDToName[id]
+	if name != "" {
+		delete(volumeIDToName, id)
+		delete(volumeNameToID, name)
+	}
 }
 
 // handle implements GET /api/types/StoragePool/instances
@@ -240,6 +296,10 @@ func handleSystemInstances(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "PodmonControllerProbeError", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
+	if stepHandlersErrors.BadRemoteSystemIDError {
+		returnJSONFile("features", "get_primary_system_instance.json", w, nil)
+		return
+	}
 	if stepHandlersErrors.systemNameMatchingError {
 		count++
 	}
@@ -250,6 +310,15 @@ func handleSystemInstances(w http.ResponseWriter, r *http.Request) {
 	} else {
 		returnJSONFile("features", "get_system_instances.json", w, nil)
 	}
+}
+
+// handle PeerMDM instances implements GET /api/types/PeerMdm/instances
+func handlePeerMdmInstances(w http.ResponseWriter, r *http.Request) {
+	if stepHandlersErrors.PeerMdmError {
+		writeError(w, "PeerMdmError", http.StatusRequestTimeout, codes.Internal)
+		return
+	}
+	returnJSONFile("features", "get_peer_mdms.json", w, nil)
 }
 
 // handleStoragePoolInstances implements GET /api/types/StoragePool/instances
@@ -306,6 +375,27 @@ var volumeIDToAncestorID map[string]string
 // Map of volume ID to consistency group ID
 var volumeIDToConsistencyGroupID map[string]string
 
+// Map of volume ID to size in KB
+var volumeIDToSizeInKB map[string]string
+
+// Map of volume ID to Replication State
+var volumeIDToReplicationState map[string]string
+
+// Map of Replication Consistency Group ID to name
+var rcgIDToName map[string]string
+
+// Map of Replication Consistency Group Name to ID
+var rcgNameToID map[string]string
+
+// Map of ReplicationPair ID to Name
+var replicationPairIDToName map[string]string
+
+// Map of ReplicatPair Name to ID
+var replicationPairNameToID map[string]string
+
+// Map of ReplicationPair ID to Source Volume
+var replicationPairIDToSourceVolume map[string]string
+
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	if volumeIDToName == nil {
@@ -313,6 +403,14 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToAncestorID = make(map[string]string)
 		volumeNameToID = make(map[string]string)
 		volumeIDToConsistencyGroupID = make(map[string]string)
+		volumeIDToSizeInKB = make(map[string]string)
+		volumeIDToReplicationState = make(map[string]string)
+		rcgIDToName = make(map[string]string)
+		rcgNameToID = make(map[string]string)
+		replicationPairIDToName = make(map[string]string)
+		replicationPairNameToID = make(map[string]string)
+		replicationPairIDToSourceVolume = make(map[string]string)
+
 	}
 	if stepHandlersErrors.VolumeInstancesError {
 		writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
@@ -322,12 +420,17 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 
 	// Post is CreateVolume; here just return a volume id encoded from the name
 	case http.MethodPost:
+		if stepHandlersErrors.CreateVolumeError {
+			writeError(w, "create volume induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
 		req := types.VolumeParam{}
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&req)
 		if err != nil {
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
+		fmt.Printf("POST to create volume name %s\n", req.Name)
 		if volumeNameToID[req.Name] != "" {
 			w.WriteHeader(http.StatusInternalServerError)
 			// duplicate volume name response
@@ -346,10 +449,13 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		// good response
 		resp := new(types.VolumeResp)
 		resp.ID = hex.EncodeToString([]byte(req.Name))
+		fmt.Printf("Generated volume ID %s Name %s\n", resp.ID, req.Name)
 		volumeIDToName[resp.ID] = req.Name
 		volumeNameToID[req.Name] = resp.ID
 		volumeIDToAncestorID[resp.ID] = "null"
 		volumeIDToConsistencyGroupID[resp.ID] = "null"
+		volumeIDToSizeInKB[resp.ID] = req.VolumeSizeInKb
+		volumeIDToReplicationState[resp.ID] = unmarkedForReplication
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
@@ -371,6 +477,8 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
 			replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
 			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
+			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
+			replacementMap["__VOLUME_REPLICATION_STATE__"] = volumeIDToReplicationState[id]
 			data := returnJSONFile("features", "volume.json.template", nil, replacementMap)
 			vol := new(types.Volume)
 			err := json.Unmarshal(data, vol)
@@ -378,6 +486,171 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 				log.Printf("error unmarshalling json: %s\n", string(data))
 			}
 			instances = append(instances, vol)
+		}
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(instances)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err)
+		}
+	}
+}
+
+const remoteRCGID = "d02aebc400000000"
+const unmarkedForReplication = "UnmarkedForReplication"
+const defaultVolumeSize = "33554432"
+
+func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if stepHandlersErrors.ReplicationConsistencyGroupError {
+			writeError(w, "create rcg induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+		req := types.ReplicationConsistencyGroupCreatePayload{}
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&req)
+		if err != nil {
+			log.Printf("error decoding json: %s\n", err.Error())
+		}
+		fmt.Printf("POST to ReplicationConsistencyGroup %s\n", req.Name)
+		if rcgNameToID[req.Name] != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			// duplicate rcg name response
+			log.Printf("request for rcg creation of duplicate name: %s\n", req.Name)
+			resp := new(types.Error)
+			resp.Message = "RCG name already in use"
+			resp.HTTPStatusCode = http.StatusInternalServerError
+			resp.ErrorCode = 6
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
+			if err != nil {
+				log.Printf("error encoding json: %s\n", err.Error())
+			}
+			return
+		}
+		// good response
+		resp := new(types.ReplicationConsistencyGroup)
+		resp.ID = hex.EncodeToString([]byte(req.Name))
+		fmt.Printf("Generated rcg ID %s Name %s\n", resp.ID, req.Name)
+		rcgIDToName[resp.ID] = req.Name
+		rcgNameToID[req.Name] = resp.ID
+		// add in remote RCG, unless error
+		rcgIDToName[remoteRCGID] = "rem-" + req.Name
+		rcgNameToID["rem-"+req.Name] = remoteRCGID
+		if debug {
+			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
+		}
+		encoder := json.NewEncoder(w)
+		err = encoder.Encode(resp)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err.Error())
+		}
+	case http.MethodGet:
+		if stepHandlersErrors.GetReplicationConsistencyGroupError {
+			writeError(w, "could not GET ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+		instances := make([]*types.ReplicationConsistencyGroup, 0)
+		for id, name := range rcgIDToName {
+			replacementMap := make(map[string]string)
+			replacementMap["__ID__"] = id
+			replacementMap["__NAME__"] = name
+			if stepHandlersErrors.RemoteRCGBadNameError {
+				replacementMap["__NAME__"] = "xxx"
+			}
+			var data []byte
+			if id == remoteRCGID {
+				if stepHandlersErrors.RemoteReplicationConsistencyGroupError {
+					writeError(w, "could not GET Remote ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
+					return
+				}
+				data = returnJSONFile("features", "replication_consistency_group_reverse.template", nil, replacementMap)
+			} else {
+				data = returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
+			}
+			fmt.Printf("RCG data %s\n", string(data))
+			rcg := new(types.ReplicationConsistencyGroup)
+			err := json.Unmarshal(data, rcg)
+			if err != nil {
+				log.Printf("error unmarshalling json: %s\n", string(data))
+			}
+			instances = append(instances, rcg)
+		}
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(instances)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err)
+		}
+
+	}
+}
+
+func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if stepHandlersErrors.ReplicationPairError {
+			writeError(w, "POST ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+		req := types.QueryReplicationPair{}
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&req)
+		if err != nil {
+			log.Printf("error decoding json: %s\n", err.Error())
+		}
+		fmt.Printf("POST to ReplicationPair %s Request %+v\n", req.Name, req)
+		if replicationPairNameToID[req.Name] != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			// duplicate replication pair name response
+			log.Printf("request for replication pair creation of duplicate name: %s\n", req.Name)
+			resp := new(types.Error)
+			resp.Message = "Replication Pair name already in use"
+			resp.HTTPStatusCode = http.StatusInternalServerError
+			resp.ErrorCode = 6
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
+			if err != nil {
+				log.Printf("error encoding json: %s\n", err.Error())
+			}
+			return
+		}
+		// good response
+		resp := new(types.ReplicationPair)
+		resp.ID = hex.EncodeToString([]byte(req.Name))
+		fmt.Printf("Generated replicationPair ID %s Name %s Struct %+v\n", resp.ID, req.Name, req)
+		replicationPairIDToName[resp.ID] = req.Name
+		replicationPairIDToSourceVolume[resp.ID] = req.SourceVolumeID
+		replicationPairNameToID[req.Name] = resp.ID
+		volumeIDToReplicationState[req.SourceVolumeID] = "Replicated"
+		if true {
+			log.Printf("request name: %s id: %s sourceVolume %s\n", req.Name, resp.ID, req.SourceVolumeID)
+		}
+		encoder := json.NewEncoder(w)
+		err = encoder.Encode(resp)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err.Error())
+		}
+	case http.MethodGet:
+		if stepHandlersErrors.GetReplicationPairError {
+			writeError(w, "GET ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+		instances := make([]*types.ReplicationPair, 0)
+		for id, name := range replicationPairIDToName {
+			replacementMap := make(map[string]string)
+			replacementMap["__ID__"] = id
+			replacementMap["__NAME__"] = name
+			replacementMap["__SOURCE_VOLUME__"] = replicationPairIDToSourceVolume[id]
+			log.Printf("replicatPair replacementMap %v\n", replacementMap)
+			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
+			log.Printf("replication-pair-data %s\n", string(data))
+			pair := new(types.ReplicationPair)
+			err := json.Unmarshal(data, pair)
+			if err != nil {
+				log.Printf("error unmarshalling json: %s\n", string(data))
+			}
+			log.Printf("replication-pair +%v", pair)
+			instances = append(instances, pair)
 		}
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(instances)
@@ -487,10 +760,13 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// TWXXX EXPERIMENTAL
 			volumeIDToName[id] = snapParam.SnapshotName
 			volumeNameToID[snapParam.SnapshotName] = id
 			volumeIDToAncestorID[id] = snapParam.VolumeID
 			volumeIDToConsistencyGroupID[id] = cgValue
+			volumeIDToSizeInKB[id] = defaultVolumeSize
+			volumeIDToReplicationState[id] = unmarkedForReplication
 		}
 
 		if stepHandlersErrors.WrongVolIDError {
@@ -505,6 +781,9 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		volumeIDToName[id] = ""
 		volumeIDToAncestorID[id] = ""
 		volumeIDToConsistencyGroupID[id] = ""
+		volumeIDToSizeInKB[id] = ""
+		volumeIDToSizeInKB[id] = defaultVolumeSize
+		volumeIDToReplicationState[id] = ""
 		if name != "" {
 			volumeNameToID[name] = ""
 		}
@@ -513,6 +792,11 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
+		req := types.SetVolumeSizeParam{}
+		decoder := json.NewDecoder(r.Body)
+		_ = decoder.Decode(&req)
+		intValue, _ := strconv.Atoi(req.SizeInGB)
+		volumeIDToSizeInKB[id] = strconv.Itoa(intValue / 1024)
 	case "setVolumeName":
 		//volumeIDToName[id] = snapParam.Name
 		req := types.SetVolumeNameParam{}
@@ -520,6 +804,28 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		_ = decoder.Decode(&req)
 		fmt.Printf("set volume name %s", req.NewName)
 		volumeIDToName[id] = req.NewName
+	case "removeReplicationConsistencyGroup":
+		if stepHandlersErrors.RemoveRCGError {
+			writeError(w, "inducedError", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+		name := rcgIDToName[id]
+		rcgIDToName[id] = ""
+		if name != "" {
+			rcgNameToID[name] = ""
+		}
+	case "removeReplicationPair":
+		if stepHandlersErrors.NoDeleteReplicationPair {
+			return
+		}
+		sourceVolume := replicationPairIDToSourceVolume[id]
+		fmt.Printf("sourceVolume %s\n", sourceVolume)
+		fmt.Printf("volumeIDToReplicationState %+v\n", volumeIDToReplicationState)
+		volumeIDToReplicationState[sourceVolume] = unmarkedForReplication
+		name := replicationPairIDToName[id]
+		delete(replicationPairIDToName, id)
+		delete(replicationPairIDToSourceVolume, id)
+		delete(replicationPairNameToID, name)
 	}
 }
 
@@ -586,6 +892,33 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 		if from == "System" {
 			returnJSONFile("features", "get_system_instances.json", w, nil)
 		}
+
+		if stepHandlersErrors.NoProtectionDomainError {
+			writeError(w, "induced error NoProtectionDomainError", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+
+		returnJSONFile("features", "get_protection_domains.json", w, nil)
+	case "ReplicationPair":
+		instances := make([]*types.ReplicationPair, 0)
+		for id, name := range replicationPairIDToName {
+			replacementMap := make(map[string]string)
+			replacementMap["__ID__"] = id
+			replacementMap["__NAME__"] = name
+			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
+			pair := new(types.ReplicationPair)
+			err := json.Unmarshal(data, pair)
+			if err != nil {
+				log.Printf("error unmarshalling json: %s\n", string(data))
+			}
+			log.Printf("pair +%v", pair)
+			instances = append(instances, pair)
+		}
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(instances)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err)
+		}
 	default:
 		writeError(w, "Unsupported relationship to type", http.StatusRequestTimeout, codes.Internal)
 	}
@@ -616,12 +949,16 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 	objType := vars["type"]
 	id := vars["id"]
 	id = extractIDFromStruct(id)
-	if true {
-		log.Printf("handle instances type %s id %s\n", objType, id)
-	}
+	log.Printf("handle instances type %s id %s\n", objType, id)
 	switch objType {
 	case "Volume":
 		if id != "9999" {
+			if volumeIDToName[id] == "" {
+				// TWXXX EXPERIMENAL
+				//fmt.Printf("volumeIDToName %v volumeNameToID %v\n", volumeIDToName, volumeNameToID)
+				//writeError(w, "volume not found (no name): "+id, http.StatusNotFound, codes.NotFound)
+				volumeIDToName[id] = "vol" + "id"
+			}
 			log.Printf("Get id %s for %s\n", id, objType)
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = id
@@ -629,11 +966,18 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
 			replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
 			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
+			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
+			replacementMap["__VOLUME_REPLICATION_STATE__"] = volumeIDToReplicationState[id]
 			returnJSONFile("features", "volume.json.template", w, replacementMap)
 		} else {
 			log.Printf("Did not find id %s for %s\n", id, objType)
 			writeError(w, "volume not found: "+id, http.StatusNotFound, codes.NotFound)
 		}
+	case "ReplicationConsistencyGroup":
+		replacementMap := make(map[string]string)
+		replacementMap["__ID__"] = id
+		replacementMap["__NAME__"] = rcgIDToName[id]
+		returnJSONFile("features", "replication_consistency_group.template", w, replacementMap)
 	}
 }
 
