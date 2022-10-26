@@ -71,7 +71,7 @@ Scenario Outline: Test CreateStorageProtectionGroup
   | "sourcevol"              | "FindVolumeIDError"                      | "can't find volume replicated-sourcevol by name"    | "false"  |
 
 @replication
-Scenario Outline: Test CreateStorageProtectionGroup
+Scenario Outline: Test DeleteStorageProtectionGroup 
   Given a VxFlexOS service
   And I use config "replication-config"
   When I call CreateVolume <name>
@@ -85,5 +85,22 @@ Scenario Outline: Test CreateStorageProtectionGroup
   Examples:
   | name                     | error                        | errormsg                                           | valid    |
   | "sourcevol"              | "none"                       | "none"                                             | "true"   | 
-  | "sourcevol"              | "RemoveRCGError"             | "error deleting the replication consistency group" | "false"   | 
-  | "sourcevol"              | "NoDeleteReplicationPair"    | "pairs exist"                                      | "false" |
+  | "sourcevol"              | "RemoveRCGError"             | "error deleting the replication consistency group" | "false"  | 
+  | "sourcevol"              | "NoDeleteReplicationPair"    | "pairs exist"                                      | "false"  |
+
+@replication
+Scenario Outline: Test DeleteStorageProtectionGroup 
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I call DeleteVolume <name>
+  And I induce error <error>
+  And I call DeleteStorageProtectionGroup
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name                     | error                        | errormsg                                           | valid    |
+  | "sourcevol"              | "none"                       | "none"                                             | "true"   | 
+  | "sourcevol"              | "GetReplicationPairError"    | "GET ReplicationPair induced error"                | "false"  |
