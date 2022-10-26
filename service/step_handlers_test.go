@@ -900,6 +900,11 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 
 		returnJSONFile("features", "get_protection_domains.json", w, nil)
 	case "ReplicationPair":
+		if stepHandlersErrors.GetReplicationPairError {
+			writeError(w, "GET ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+
 		instances := make([]*types.ReplicationPair, 0)
 		for id, name := range replicationPairIDToName {
 			replacementMap := make(map[string]string)
