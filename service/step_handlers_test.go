@@ -396,6 +396,12 @@ var replicationPairNameToID map[string]string
 // Map of ReplicationPair ID to Source Volume
 var replicationPairIDToSourceVolume map[string]string
 
+// Replication group mode to replace for.
+var replicationGroupConsistMode string
+
+// Replication group state to replace for.
+var replicationGroupState string
+
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	if volumeIDToName == nil {
@@ -558,6 +564,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			if stepHandlersErrors.RemoteRCGBadNameError {
 				replacementMap["__NAME__"] = "xxx"
 			}
+			replacementMap["__MODE__"] = replicationGroupConsistMode
 			var data []byte
 			if id == remoteRCGID {
 				if stepHandlersErrors.RemoteReplicationConsistencyGroupError {
@@ -950,6 +957,11 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if stepHandlersErrors.GetReplicationConsistencyGroupError {
+		writeError(w, "could not GET ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
+		return
+	}
+
 	vars := mux.Vars(r)
 	objType := vars["type"]
 	id := vars["id"]
@@ -982,6 +994,20 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 		replacementMap := make(map[string]string)
 		replacementMap["__ID__"] = id
 		replacementMap["__NAME__"] = rcgIDToName[id]
+		replacementMap["__MODE__"] = replicationGroupConsistMode
+
+		if replicationGroupState == "Normal" {
+			replacementMap["__STATE__"] = "Ok"
+		} else {
+			replacementMap["__STATE__"] = "StoppedByUser"
+			if replicationGroupState == "Failover" {
+				replacementMap["__FO_TYPE__"] = "Failover"
+				replacementMap["__FO_STATE__"] = "Done"
+			} else if replicationGroupState == "Paused" {
+				replacementMap["__P_MODE__"] = "Paused"
+			}
+		}
+
 		returnJSONFile("features", "replication_consistency_group.template", w, replacementMap)
 	}
 }

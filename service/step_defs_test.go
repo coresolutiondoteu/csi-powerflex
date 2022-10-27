@@ -3569,6 +3569,37 @@ func (f *feature) iUseConfig(filename string) error {
 	return nil
 }
 
+func (f *feature) iCallGetStorageProtectionGroupStatus() error {
+	ctx := new(context.Context)
+	attributes := make(map[string]string)
+
+	attributes["systemName"] = arrayID
+	req := &replication.GetStorageProtectionGroupStatusRequest{
+		ProtectionGroupId:         f.createStorageProtectionGroupResponse.LocalProtectionGroupId,
+		ProtectionGroupAttributes: attributes,
+	}
+	_, f.err = f.service.GetStorageProtectionGroupStatus(*ctx, req)
+
+	return nil
+}
+
+func (f *feature) iCallGetStorageProtectionGroupStatusWithStateAndMode(arg1, arg2 string) error {
+	ctx := new(context.Context)
+	attributes := make(map[string]string)
+
+	replicationGroupState = arg1
+	replicationGroupConsistMode = arg2
+
+	attributes["systemName"] = arrayID
+	req := &replication.GetStorageProtectionGroupStatusRequest{
+		ProtectionGroupId:         f.createStorageProtectionGroupResponse.LocalProtectionGroupId,
+		ProtectionGroupAttributes: attributes,
+	}
+	_, f.err = f.service.GetStorageProtectionGroupStatus(*ctx, req)
+
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
@@ -3646,7 +3677,6 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call evalSymlinks$`, f.iCallEvalSymlinks)
 	s.Step(`^I call unmountPrivMount$`, f.iCallUnmountPrivMount)
 	s.Step(`^I call CleanupPrivateTarget for errors$`, f.iCallCleanupPrivateTargetForErrors)
-
 	s.Step(`^I call getPathMounts$`, f.iCallGetPathMounts)
 	s.Step(`^I call mountValidateBlockVolCapabilities$`, f.iCallMountValidateVolCapabilities)
 	s.Step(`^I call blockValidateMountVolCapabilities$`, f.iCallBlockValidateVolCapabilities)
@@ -3733,6 +3763,8 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call DeleteStorageProtectionGroup$`, f.iCallDeleteStorageProtectionGroup)
 	s.Step(`^I call DeleteVolume "([^"]*)"$`, f.iCallDeleteVolume)
 	s.Step(`^I use config "([^"]*)"$`, f.iUseConfig)
+	s.Step(`^I call GetStorageProtectionGroupStatus$`, f.iCallGetStorageProtectionGroupStatus)
+	s.Step(`^I call GetStorageProtectionGroupStatus with state "([^"]*)" and mode "([^"]*)"$`, f.iCallGetStorageProtectionGroupStatusWithStateAndMode)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {
