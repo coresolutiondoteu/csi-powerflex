@@ -62,10 +62,9 @@ Scenario Outline: Test CreateStorageProtectionGroup
   | "sourcevol"              | "ProbeSecondaryError"                    | "PodmonControllerProbeError"                        | "false"  |
   | "sourcevol"              | "NoProtectionDomainError"                | "NoProtectionDomainError"                           | "false"  |
   | "sourcevol"              | "ReplicationPairError"                   | "POST ReplicationPair induced error"                | "false"  |
-  | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"		      | "false"  |
+  | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"		              | "false"  |
   | "sourcevol"              | "PeerMdmError"                           | "PeerMdmError"                                      | "false"  |
   | "sourcevol"              | "RemoteReplicationConsistencyGroupError" | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
-  | "sourcevol"              | "RemoteRCGBadNameError"                  | "remote replication consistency group not found"    | "false"  |
   | "sourcevol"              | "NoProtectionDomainError"                | "induced error"                                     | "false"  |
   | "sourcevol"              | "BadRemoteSystem"                        | "couldn't getSystem (remote)"                       | "false"  |
   | "sourcevol"              | "FindVolumeIDError"                      | "can't find volume replicated-sourcevol by name"    | "false"  |
@@ -104,3 +103,53 @@ Scenario Outline: Test DeleteStorageProtectionGroup
   | name                     | error                        | errormsg                                           | valid    |
   | "sourcevol"              | "none"                       | "none"                                             | "true"   | 
   | "sourcevol"              | "GetReplicationPairError"    | "GET ReplicationPair induced error"                | "false"  |
+
+@replication
+Scenario Outline: Test GetStorageProtectionGroupStatus 
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I induce error <error>
+  And I call GetStorageProtectionGroupStatus
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name                     | error                                    | errormsg                                           | valid    |
+  | "sourcevol"              | "none"                                   | "none"                                             | "true"   |
+  | "sourcevol"              | "GetReplicationConsistencyGroupError"    | "could not GET ReplicationConsistencyGroup"        | "false"  |
+  | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"                | "false"  |
+
+@replication
+Scenario Outline: Test GetStorageProtectionGroupStatus current status
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I call GetStorageProtectionGroupStatus with state <state> and mode <mode>
+  Then the error contains <errormsg>
+  Examples:
+  | name                     | errormsg   | state       | mode                  |
+  | "sourcevol"              | "none"     | "Normal"    | "Consistent"          |
+  | "sourcevol"              | "none"     | "Normal"    | "PartiallyConsistent" |
+  | "sourcevol"              | "none"     | "Normal"    | "ConsistentPending"   |
+  | "sourcevol"              | "none"     | "Normal"    | "Invalid"             |
+  | "sourcevol"              | "none"     | "Failover"  | "Consistent"          |
+  | "sourcevol"              | "none"     | "Paused"    | "Consistent"          |
+
+@replication
+Scenario Outline: Test GetStorageProtectionGroupStatus with new replication pairs
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I call DeleteVolume <name>
+  And I call GetStorageProtectionGroupStatus
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name                     | error     | errormsg                       | valid    |
+  | "sourcevol"              | "none"    | "no replication pairs exist"   | "false"  |
