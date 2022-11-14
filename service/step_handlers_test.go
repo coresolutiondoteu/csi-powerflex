@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	types "github.com/dell/goscaleio/types/v1"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	codes "google.golang.org/grpc/codes"
 )
@@ -103,6 +104,7 @@ var (
 		RemoveRCGError                         bool
 		NoDeleteReplicationPair                bool
 		BadRemoteSystem                        bool
+		ExecuteActionError                     bool
 	}
 )
 
@@ -133,6 +135,8 @@ func getHandler() http.Handler {
 	replicationPairIDToName = make(map[string]string)
 	replicationPairNameToID = make(map[string]string)
 	replicationPairIDToSourceVolume = make(map[string]string)
+	replicationPairIDToDestinationVolume = make(map[string]string)
+	rcgIDtoDestinationVolumes = make(map[string][]string)
 	debug = false
 	stepHandlersErrors.FindVolumeIDError = false
 	stepHandlersErrors.GetVolByIDError = false
@@ -202,6 +206,7 @@ func getHandler() http.Handler {
 	stepHandlersErrors.RemoveRCGError = false
 	stepHandlersErrors.NoDeleteReplicationPair = false
 	stepHandlersErrors.BadRemoteSystem = false
+	stepHandlersErrors.ExecuteActionError = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -396,11 +401,16 @@ var replicationPairNameToID map[string]string
 // Map of ReplicationPair ID to Source Volume
 var replicationPairIDToSourceVolume map[string]string
 
+// Map of ReplicationPair ID to Destination Volume
+var replicationPairIDToDestinationVolume map[string]string
+
 // Replication group mode to replace for.
 var replicationGroupConsistMode string
 
 // Replication group state to replace for.
 var replicationGroupState string
+
+var rcgIDtoDestinationVolumes map[string][]string
 
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
@@ -416,6 +426,8 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		replicationPairIDToName = make(map[string]string)
 		replicationPairNameToID = make(map[string]string)
 		replicationPairIDToSourceVolume = make(map[string]string)
+		replicationPairIDToDestinationVolume = make(map[string]string)
+		rcgIDtoDestinationVolumes = make(map[string][]string)
 
 	}
 	if stepHandlersErrors.VolumeInstancesError {
@@ -627,8 +639,14 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Generated replicationPair ID %s Name %s Struct %+v\n", resp.ID, req.Name, req)
 		replicationPairIDToName[resp.ID] = req.Name
 		replicationPairIDToSourceVolume[resp.ID] = req.SourceVolumeID
+		replicationPairIDToDestinationVolume[resp.ID] = req.DestinationVolumeID
 		replicationPairNameToID[req.Name] = resp.ID
+
 		volumeIDToReplicationState[req.SourceVolumeID] = "Replicated"
+		volumeIDToReplicationState[req.DestinationVolumeID] = "Replicated"
+
+		rcgIDtoDestinationVolumes[req.ReplicationConsistencyGroupID] = append(rcgIDtoDestinationVolumes[req.ReplicationConsistencyGroupID], req.DestinationVolumeID)
+
 		if true {
 			log.Printf("request name: %s id: %s sourceVolume %s\n", req.Name, resp.ID, req.SourceVolumeID)
 		}
@@ -648,6 +666,7 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 			replacementMap["__ID__"] = id
 			replacementMap["__NAME__"] = name
 			replacementMap["__SOURCE_VOLUME__"] = replicationPairIDToSourceVolume[id]
+			replacementMap["__DESTINATION_VOLUME__"] = replicationPairIDToDestinationVolume[id]
 			log.Printf("replicatPair replacementMap %v\n", replacementMap)
 			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
 			log.Printf("replication-pair-data %s\n", string(data))
@@ -826,13 +845,58 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sourceVolume := replicationPairIDToSourceVolume[id]
+		destVolume := replicationPairIDToDestinationVolume[id]
 		fmt.Printf("sourceVolume %s\n", sourceVolume)
 		fmt.Printf("volumeIDToReplicationState %+v\n", volumeIDToReplicationState)
 		volumeIDToReplicationState[sourceVolume] = unmarkedForReplication
+		volumeIDToReplicationState[destVolume] = unmarkedForReplication
 		name := replicationPairIDToName[id]
 		delete(replicationPairIDToName, id)
 		delete(replicationPairIDToSourceVolume, id)
+		delete(replicationPairIDToDestinationVolume, id)
 		delete(replicationPairNameToID, name)
+	case "createReplicationConsistencyGroupSnapshots":
+		// volumeIDToAncestorID[id] = "null"
+		snapshotGroupID := uuid.New().String()
+		resp := types.CreateReplicationConsistencyGroupSnapshotResp{}
+		// snapshotID := hex.EncodeToString([]byte(snapshotName))
+		resp.SnapshotGroupID = snapshotGroupID
+
+		for key, val := range rcgIDtoDestinationVolumes {
+			fmt.Printf("RCG ID %s, Vols %+v\n", key, val)
+
+			for _, vol := range val {
+				volName := uuid.New().String()
+				volumeIDToName[volName] = volName
+				volumeNameToID[volName] = volName
+				volumeIDToAncestorID[volName] = vol
+				volumeIDToConsistencyGroupID[volName] = snapshotGroupID
+				volumeIDToSizeInKB[volName] = volumeIDToSizeInKB[vol]
+				volumeIDToReplicationState[volName] = unmarkedForReplication
+
+			}
+		}
+
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(resp)
+		if err != nil {
+			log.Printf("error encoding json: %s\n", err)
+		}
+	case "switchoverReplicationConsistencyGroup":
+		fallthrough
+	case "failoverReplicationConsistencyGroup":
+		fallthrough
+	case "restoreReplicationConsistencyGroup":
+		fallthrough
+	case "reverseReplicationConsistencyGroup":
+		fallthrough
+	case "resumeReplicationConsistencyGroup":
+		fallthrough
+	case "pauseReplicationConsistencyGroup":
+		if stepHandlersErrors.ExecuteActionError {
+			writeError(w, "RCG not in the correct state", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
 	}
 }
 
@@ -917,6 +981,8 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = id
 			replacementMap["__NAME__"] = name
+			replacementMap["__SOURCE_VOLUME__"] = replicationPairIDToSourceVolume[id]
+			replacementMap["__DESTINATION_VOLUME__"] = replicationPairIDToDestinationVolume[id]
 			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
 			pair := new(types.ReplicationPair)
 			err := json.Unmarshal(data, pair)
