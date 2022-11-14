@@ -326,6 +326,8 @@ func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *replica
 	return &replication.DeleteStorageProtectionGroupResponse{}, nil
 }
 
+var getRemoteSnapDelay = (1 * time.Second)
+
 func (s *service) ExecuteAction(ctx context.Context, req *replication.ExecuteActionRequest) (*replication.ExecuteActionResponse, error) {
 	Log.Printf("[ExecuteAction] - req %+v", req)
 
@@ -360,7 +362,7 @@ func (s *service) ExecuteAction(ctx context.Context, req *replication.ExecuteAct
 			if err != nil {
 				return nil, err
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(getRemoteSnapDelay)
 			counter++
 		}
 	case replication.ActionTypes_FAILOVER_REMOTE.String():
