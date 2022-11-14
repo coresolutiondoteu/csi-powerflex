@@ -5,7 +5,7 @@
         "userRequestedPauseTransmitInitCopy": false,
         "remoteCapacityInMB": 49152,
         "localVolumeId": "__SOURCE_VOLUME__",
-        "remoteVolumeId": "847d98bd00000002",
+        "remoteVolumeId": "__DESTINATION_VOLUME__",
         "remoteVolumeName": "replication-target",
         "replicationConsistencyGroupId": "d303184900000001",
         "copyType": "Identical",

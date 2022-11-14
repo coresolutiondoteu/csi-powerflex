@@ -153,3 +153,30 @@ Scenario Outline: Test GetStorageProtectionGroupStatus with new replication pair
   Examples:
   | name                     | error     | errormsg                       | valid    |
   | "sourcevol"              | "none"    | "no replication pairs exist"   | "false"  |
+
+@replication
+Scenario Outline: Test ExecuteAction
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I call GetStorageProtectionGroupStatus with state <state> and mode <mode>
+  And I induce error <error>
+  And I call ExecuteAction <action>
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name                     | error                | errormsg                       | action              | valid   | state      | mode          |
+  | "sourcevol"              | "none"               | "none"                         | "CreateSnapshot"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "FailoverRemote"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "FailoverRemote"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "UnplannedFailover" | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "UnplannedFailover" | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "ReprotectLocal"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "ReprotectLocal"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "Resume"            | "true"  | "Failover" | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "Resume"            | "true"  | "Paused"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "Resume"            | "false" | "Failover" | "Consistent"  |
+  | "sourcevol"              | "none"               | "none"                         | "Suspend"           | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "Suspend"           | "false" | "Normal"   | "Consistent"  |

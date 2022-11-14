@@ -1166,6 +1166,8 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.NoDeleteReplicationPair = true
 	case "BadRemoteSystem":
 		stepHandlersErrors.BadRemoteSystem = true
+	case "ExecuteActionError":
+		stepHandlersErrors.ExecuteActionError = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -3600,6 +3602,48 @@ func (f *feature) iCallGetStorageProtectionGroupStatusWithStateAndMode(arg1, arg
 	return nil
 }
 
+func (f *feature) iCallExecuteAction(arg1 string) error {
+	ctx := new(context.Context)
+	attributes := make(map[string]string)
+	remoteAttributes := make(map[string]string)
+
+	var action replication.ExecuteActionRequest_Action
+	var act replication.Action
+
+	switch arg1 {
+	case "CreateSnapshot":
+		act.ActionTypes = replication.ActionTypes_CREATE_SNAPSHOT
+		getRemoteSnapDelay = 10 * time.Millisecond
+	case "FailoverRemote":
+		act.ActionTypes = replication.ActionTypes_FAILOVER_REMOTE
+	case "UnplannedFailover":
+		act.ActionTypes = replication.ActionTypes_UNPLANNED_FAILOVER_LOCAL
+	case "ReprotectLocal":
+		act.ActionTypes = replication.ActionTypes_REPROTECT_LOCAL
+	case "Resume":
+		act.ActionTypes = replication.ActionTypes_RESUME
+	case "Suspend":
+		act.ActionTypes = replication.ActionTypes_SUSPEND
+	default:
+		act.ActionTypes = replication.ActionTypes_UNKNOWN_ACTION
+	}
+
+	action.Action = &act
+
+	attributes["systemName"] = arrayID
+	remoteAttributes["systemName"] = arrayID2
+	req := &replication.ExecuteActionRequest{
+		ProtectionGroupId:               f.createStorageProtectionGroupResponse.LocalProtectionGroupId,
+		ProtectionGroupAttributes:       attributes,
+		RemoteProtectionGroupId:         f.createStorageProtectionGroupResponse.RemoteProtectionGroupId,
+		RemoteProtectionGroupAttributes: remoteAttributes,
+		ActionTypes:                     &action,
+	}
+
+	_, f.err = f.service.ExecuteAction(*ctx, req)
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
@@ -3765,6 +3809,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I use config "([^"]*)"$`, f.iUseConfig)
 	s.Step(`^I call GetStorageProtectionGroupStatus$`, f.iCallGetStorageProtectionGroupStatus)
 	s.Step(`^I call GetStorageProtectionGroupStatus with state "([^"]*)" and mode "([^"]*)"$`, f.iCallGetStorageProtectionGroupStatusWithStateAndMode)
+	s.Step(`^I call ExecuteAction "([^"]*)"$`, f.iCallExecuteAction)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {
