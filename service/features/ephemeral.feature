@@ -67,7 +67,7 @@ Examples:
  | ""                      | "30Gi"         | ""                       | "14dbbf5617523654" | "Volume name not specified"             |
  | "csi-thisnameisalittleover31characters"  | "30Gi"         | ""      | "14dbbf5617523654" | "Volume name too long"                  |
  | "csi-d0f055a700000000"  | "30Gi"         | "viki_pool_HDD_20181031" | "does-not-exist"   | "not recgonized"                        |
- | "csi-d0f055a700012345"  | "30Gi"         | "viki_pool_HDD_20181031" | "15dbbf5617523655-system-name" | "unable to login"           |
+ | "csi-d0f055a700012345"  | "30Gi"         | "viki_pool_HDD_20181031" | "15dbbf5617523655" | "not published"                       |
 
 @ephemeral
 Scenario Outline: Ephemeral Node Unpublish with errors

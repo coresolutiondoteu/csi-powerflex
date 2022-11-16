@@ -4,7 +4,6 @@ Feature: VxFlex OS CSI interface
   So that they are known to work
 
 @delete
-@delete
   Scenario: Delete volume with valid CapacityRange capabilities BlockVolume, SINGLE_NODE_WRITER and null VolumeContentSource.
     Given a VxFlexOS service
     And a valid volume
