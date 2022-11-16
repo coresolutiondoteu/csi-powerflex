@@ -45,13 +45,13 @@ Feature: VxFlex OS CSI interface
       | "NoBlockDevForNodePublish"               | "is not a block device@@not published to node"              |
       | "TargetNotCreatedForNodePublish"         | "none"                                                      |
       # may be different for Windows vs. Linux
-      | "PrivateDirectoryNotExistForNodePublish" | "not a directory" |
+      | "PrivateDirectoryNotExistForNodePublish" | "cannot find the path specified@@no such file or directory" |
       | "BlockMkfilePrivateDirectoryNodePublish" | "existing path is not a directory"                          |
       | "NodePublishNoTargetPath"                | "target path required"                                      |
       | "NodePublishNoVolumeCapability"          | "volume capability required"                                |
       | "NodePublishNoAccessMode"                | "Volume Access Mode is required"                            |
       | "NodePublishNoAccessType"                | "Volume Access Type is required"                            |
-      | "NodePublishBadTargetPath"               | "no such file or directory" |
+      | "NodePublishBadTargetPath"               | "cannot find the path specified@@no such file or directory" |
       | "none"                                   | "none"                                                      |
 
 @node
@@ -91,7 +91,7 @@ Feature: VxFlex OS CSI interface
       | "NoBlockDevForNodePublish"               | "none"                   | "is not a block device@@not published to node"              |
       | "TargetNotCreatedForNodePublish"         | "none"                   | "none"                                                      |
       # may be different for Windows vs. Linux
-      | "PrivateDirectoryNotExistForNodePublish" | "none"                   | "not a directory@@no such file or directory" |
+      | "PrivateDirectoryNotExistForNodePublish" | "none"                   | "cannot find the path specified@@no such file or directory" |
       | "BlockMkfilePrivateDirectoryNodePublish" | "none"                   | "existing path is not a directory"                          |
       | "NodePublishNoTargetPath"                | "none"                   | "target path required"                                      |
       | "NodePublishNoVolumeCapability"          | "none"                   | "volume capability required"                                |
@@ -280,7 +280,7 @@ Feature: VxFlex OS CSI interface
 
     Examples:
       | error                  | errormsg                                   |
-      | "none"                 | "none"                                     |
+      | "IncorrectEphemeralID" | "none"                                     |
       | "EmptyEphemeralID"     | "is shorter than 3 chars, returning error" |
 
 @node

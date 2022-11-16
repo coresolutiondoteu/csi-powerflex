@@ -1040,7 +1040,9 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 				// TWXXX EXPERIMENAL
 				//fmt.Printf("volumeIDToName %v volumeNameToID %v\n", volumeIDToName, volumeNameToID)
 				//writeError(w, "volume not found (no name): "+id, http.StatusNotFound, codes.NotFound)
-				volumeIDToName[id] = "vol" + "id"
+				volumeIDToName[id] = "vol" + id
+				volumeIDToSizeInKB[id] = defaultVolumeSize
+				volumeIDToReplicationState[id] = unmarkedForReplication
 			}
 			log.Printf("Get id %s for %s\n", id, objType)
 			replacementMap := make(map[string]string)

@@ -243,7 +243,7 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	getMappedVolDelay = 10 * time.Millisecond
 
 	// Get or reuse the cached service
-	f.getService()
+	f.service = f.getService()
 
 	goscaleio.SCINIMockMode = true
 
@@ -260,15 +260,16 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 				f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
 			}
 		}
-		addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
-		addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
-		addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
-		addPreConfiguredVolume(goodVolumeID, goodVolumeName)
-		addPreConfiguredVolume(snapVolumeID, snapVolumeName)
-		addPreConfiguredVolume(altVolumeID, altVolumeName)
-		addPreConfiguredVolume(badVolumeID2, badVolumeID2)
-		addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
-		addPreConfiguredVolume("72cee42500000003", "vol72cee42500000003")
+		// addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
+		// addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
+		// addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
+		// addPreConfiguredVolume(goodVolumeID, goodVolumeName)
+		// addPreConfiguredVolume(snapVolumeID, snapVolumeName)
+		// addPreConfiguredVolume(altVolumeID, altVolumeName)
+		// addPreConfiguredVolume(badVolumeID2, badVolumeID2)
+		// addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
+		// addPreConfiguredVolume("72cee42500000003", "vol72cee42500000003")
+		// addPreConfiguredVolume("456ca4fc00000009", "vol456ca4fc00000009")
 	} else {
 		f.server = nil
 	}
@@ -462,7 +463,7 @@ func (f *feature) iCallGetPluginInfo() error {
 }
 
 func (f *feature) iCallcheckVolumesMap(id string) error {
-	f.service.volumePrefixToSystems["123"] = []string{arrayID2}
+	// f.service.volumePrefixToSystems["123"] = []string{arrayID2}
 	f.err = f.service.checkVolumesMap(id)
 	return nil
 
@@ -1317,7 +1318,7 @@ func (f *feature) aValidVolume() error {
 		systemList2 := make([]string, 2)
 		systemList2[0] = arrayID
 		systemList2[1] = arrayID2
-		f.service.volumePrefixToSystems["111"] = systemList2
+		// f.service.volumePrefixToSystems["111"] = systemList2
 		volIDtoUse = goodVolumeID
 	}
 	volumeIDToName[volIDtoUse] = goodVolumeName
@@ -1772,15 +1773,16 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVoltypeAccessFstype(voltype
 // for the test scenario, using a suffix.
 func (f *feature) thereAreValidVolumes(n int) error {
 	// Remove the pre-configured volumes
-	removePreConfiguredVolume(sdcVolume1)
-	removePreConfiguredVolume(sdcVolume2)
-	removePreConfiguredVolume(sdcVolume0)
-	removePreConfiguredVolume(goodVolumeID)
-	removePreConfiguredVolume(snapVolumeID)
-	removePreConfiguredVolume(altVolumeID)
-	removePreConfiguredVolume(badVolumeID2)
-	removePreConfiguredVolume(snappedVolumeID)
-	removePreConfiguredVolume("72cee42500000003")
+	// removePreConfiguredVolume(sdcVolume1)
+	// removePreConfiguredVolume(sdcVolume2)
+	// removePreConfiguredVolume(sdcVolume0)
+	// removePreConfiguredVolume(goodVolumeID)
+	// removePreConfiguredVolume(snapVolumeID)
+	// removePreConfiguredVolume(altVolumeID)
+	// removePreConfiguredVolume(badVolumeID2)
+	// removePreConfiguredVolume(snappedVolumeID)
+	// removePreConfiguredVolume("72cee42500000003")
+	// removePreConfiguredVolume("456ca4fc00000009")
 
 	// Add in the requsted number of volumes
 	idTemplate := "111-11%d"
@@ -2771,9 +2773,9 @@ func (f *feature) iCallCreateVolumeGroupSnapshot() error {
 		systemList2 := make([]string, 2)
 		systemList2[0] = arrayID
 		systemList2[1] = arrayID2
-		f.service.volumePrefixToSystems["111"] = systemList2
+		f.service.volumePrefixToSystems["1234"] = systemList2
 		// f.volumeIDList = []string{"1234"} TWXXX
-		f.volumeIDList = []string{"111"}
+		f.volumeIDList = []string{"1234"}
 	}
 	if stepHandlersErrors.CreateVGSLegacyVol {
 		//make sure legacy vol works

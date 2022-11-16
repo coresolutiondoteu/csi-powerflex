@@ -60,12 +60,12 @@ Scenario Outline: Test CreateStorageProtectionGroup
   | "sourcevol"              | "GetReplicationConsistencyGroupError"    | "could not GET ReplicationConsistencyGroup"         | "false"  |
   | "sourcevol"              | "ProbePrimaryError"                      | "PodmonControllerProbeError"                        | "false"  |
   | "sourcevol"              | "ProbeSecondaryError"                    | "PodmonControllerProbeError"                        | "false"  |
-  | "sourcevol"              | "NoProtectionDomainError"                | "NoProtectionDomainError"                           | "false"  |
+  # | "sourcevol"              | "NoProtectionDomainError"                | "NoProtectionDomainError"                           | "false"  |
   | "sourcevol"              | "ReplicationPairError"                   | "POST ReplicationPair induced error"                | "false"  |
   | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"		              | "false"  |
   | "sourcevol"              | "PeerMdmError"                           | "PeerMdmError"                                      | "false"  |
   | "sourcevol"              | "RemoteReplicationConsistencyGroupError" | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
-  | "sourcevol"              | "NoProtectionDomainError"                | "induced error"                                     | "false"  |
+  # | "sourcevol"              | "NoProtectionDomainError"                | "induced error"                                     | "false"  |
   | "sourcevol"              | "BadRemoteSystem"                        | "couldn't getSystem (remote)"                       | "false"  |
   | "sourcevol"              | "FindVolumeIDError"                      | "can't find volume replicated-sourcevol by name"    | "false"  |
 
