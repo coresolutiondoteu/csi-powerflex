@@ -107,6 +107,7 @@ var (
 		ExecuteActionError                     bool
 		StorageGroupAlreadyExists              bool
 		StorageGroupAlreadyExistsUnretriavable bool
+		ReplicationGroupAlreadyDeleted         bool
 	}
 )
 
@@ -212,6 +213,7 @@ func getHandler() http.Handler {
 	stepHandlersErrors.ExecuteActionError = false
 	stepHandlersErrors.StorageGroupAlreadyExists = false
 	stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = false
+	stepHandlersErrors.ReplicationGroupAlreadyDeleted = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -1052,6 +1054,11 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 
 	if stepHandlersErrors.GetReplicationConsistencyGroupError {
 		writeError(w, "could not GET ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
+		return
+	}
+
+	if stepHandlersErrors.ReplicationGroupAlreadyDeleted {
+		writeError(w, "The Replication Consistency Group was not found", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
 

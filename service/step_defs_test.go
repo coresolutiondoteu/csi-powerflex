@@ -1173,6 +1173,8 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.StorageGroupAlreadyExists = true
 	case "StorageGroupAlreadyExistsUnretriavable":
 		stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = true
+	case "ReplicationGroupAlreadyDeleted":
+		stepHandlersErrors.ReplicationGroupAlreadyDeleted = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
