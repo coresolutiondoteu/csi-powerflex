@@ -706,19 +706,6 @@ func (s *service) ExecutePauseOnReplicationGroup(systemID string, replicationGro
 	return adminClient.ExecutePauseOnReplicationGroup(replicationGroupID, siotypes.ONLY_TRACK_CHANGES)
 }
 
-func (s *service) ExecuteSyncOnReplicationGroup(systemID string, replicationGroupID string) error {
-	adminClient := s.adminClients[systemID]
-	if adminClient == nil {
-		return fmt.Errorf("can't find adminClient by id %s", systemID)
-	}
-
-	Log.Printf("[ExecuteSyncOnReplicationGroup]: Executing Sync?")
-
-	_, err := adminClient.ExecuteSyncOnReplicationGroup(replicationGroupID)
-
-	return err
-}
-
 func (s *service) clearCache() {
 	s.volCacheRWL.Lock()
 	defer s.volCacheRWL.Unlock()
