@@ -38,7 +38,7 @@ Scenario Outline: Test CreateRemoteVolume
   | "sourcevol"              | "ProbeSecondaryError"        | "PodmonControllerProbeError"       | "false"  |
 
 
-@replication-wip
+@replication
 Scenario Outline: Test CreateStorageProtectionGroup
   Given a VxFlexOS service
   And I use config "replication-config"
@@ -102,9 +102,11 @@ Scenario Outline: Test DeleteStorageProtectionGroup
   Then the error contains <errormsg>
   And a <valid> remote volume is returned
   Examples:
-  | name                     | error                        | errormsg                                           | valid    |
-  | "sourcevol"              | "none"                       | "none"                                             | "true"   | 
-  | "sourcevol"              | "GetReplicationPairError"    | "GET ReplicationPair induced error"                | "false"  |
+  | name                     | error                                 | errormsg                                           | valid    |
+  | "sourcevol"              | "none"                                | "none"                                             | "true"   | 
+  | "sourcevol"              | "GetReplicationPairError"             | "GET ReplicationPair induced error"                | "false"  |
+  | "sourcevol"              | "ReplicationGroupAlreadyDeleted"      | "none"                                             | "true"   |
+  | "sourcevol"              | "GetReplicationConsistencyGroupError" | "could not GET ReplicationConsistencyGroup"        | "false"  |
 
 @replication
 Scenario Outline: Test GetStorageProtectionGroupStatus 
