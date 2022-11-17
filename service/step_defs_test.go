@@ -1169,6 +1169,10 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.BadRemoteSystem = true
 	case "ExecuteActionError":
 		stepHandlersErrors.ExecuteActionError = true
+	case "StorageGroupAlreadyExists":
+		stepHandlersErrors.StorageGroupAlreadyExists = true
+	case "StorageGroupAlreadyExistsUnretriavable":
+		stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}

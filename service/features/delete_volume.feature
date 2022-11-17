@@ -70,4 +70,3 @@ Feature: VxFlex OS CSI interface
     When I call Probe
     And I call DeleteVolume with "single-writer"
     Then a valid DeleteVolumeResponse is returned
-

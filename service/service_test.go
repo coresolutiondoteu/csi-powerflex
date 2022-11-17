@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	opts := godog.Options{
 		Format: "pretty",
 		Paths:  []string{"features"},
-		// Tags:   "service-wip",
+		// Tags:   "replication-wip",
 	}
 
 	status := godog.TestSuite{

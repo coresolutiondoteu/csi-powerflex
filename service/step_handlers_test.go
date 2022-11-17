@@ -105,6 +105,8 @@ var (
 		NoDeleteReplicationPair                bool
 		BadRemoteSystem                        bool
 		ExecuteActionError                     bool
+		StorageGroupAlreadyExists              bool
+		StorageGroupAlreadyExistsUnretriavable bool
 	}
 )
 
@@ -132,6 +134,7 @@ func getHandler() http.Handler {
 	volumeIDToReplicationState = make(map[string]string)
 	rcgIDToName = make(map[string]string)
 	rcgNameToID = make(map[string]string)
+	replicationConsistencyGroups = make(map[string]map[string]string)
 	replicationPairIDToName = make(map[string]string)
 	replicationPairNameToID = make(map[string]string)
 	replicationPairIDToSourceVolume = make(map[string]string)
@@ -207,6 +210,8 @@ func getHandler() http.Handler {
 	stepHandlersErrors.NoDeleteReplicationPair = false
 	stepHandlersErrors.BadRemoteSystem = false
 	stepHandlersErrors.ExecuteActionError = false
+	stepHandlersErrors.StorageGroupAlreadyExists = false
+	stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -412,6 +417,8 @@ var replicationGroupState string
 
 var rcgIDtoDestinationVolumes map[string][]string
 
+var replicationConsistencyGroups map[string]map[string]string
+
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	if volumeIDToName == nil {
@@ -423,6 +430,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToReplicationState = make(map[string]string)
 		rcgIDToName = make(map[string]string)
 		rcgNameToID = make(map[string]string)
+		replicationConsistencyGroups = make(map[string]map[string]string)
 		replicationPairIDToName = make(map[string]string)
 		replicationPairNameToID = make(map[string]string)
 		replicationPairIDToSourceVolume = make(map[string]string)
@@ -555,9 +563,22 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		// add in remote RCG, unless error
 		rcgIDToName[remoteRCGID] = "rem-" + req.Name
 		rcgNameToID["rem-"+req.Name] = remoteRCGID
+
+		replicationConsistencyGroups[resp.ID] = make(map[string]string)
+		replicationConsistencyGroups[resp.ID]["Name"] = req.Name
+		replicationConsistencyGroups[resp.ID]["ID"] = resp.ID
+		replicationConsistencyGroups[resp.ID]["ProtectionGroup"] = req.ProtectionDomainId
+		replicationConsistencyGroups[resp.ID]["RemoteProtectionGroup"] = req.RemoteProtectionDomainId
+
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
+
+		if stepHandlersErrors.StorageGroupAlreadyExists || stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable {
+			writeError(w, "The Replication Consistency Group already exists", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+
 		encoder := json.NewEncoder(w)
 		err = encoder.Encode(resp)
 		if err != nil {
@@ -570,6 +591,10 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		}
 		instances := make([]*types.ReplicationConsistencyGroup, 0)
 		for id, name := range rcgIDToName {
+			if stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable {
+				continue
+			}
+
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = id
 			replacementMap["__NAME__"] = name
@@ -577,6 +602,8 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 				replacementMap["__NAME__"] = "xxx"
 			}
 			replacementMap["__MODE__"] = replicationGroupConsistMode
+			replacementMap["__PROTECTION_DOMAIN__"] = replicationConsistencyGroups[id]["ProtectionGroup"]
+			replacementMap["__RM_PROTECTION_DOMAIN__"] = replicationConsistencyGroups[id]["RemoteProtectionGroup"]
 			var data []byte
 			if id == remoteRCGID {
 				if stepHandlersErrors.RemoteReplicationConsistencyGroupError {
