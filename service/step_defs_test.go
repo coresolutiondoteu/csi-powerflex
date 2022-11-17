@@ -1147,8 +1147,8 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.PodmonControllerProbeError = true
 	case "ReplicationConsistencyGroupError":
 		stepHandlersErrors.ReplicationConsistencyGroupError = true
-	case "GetReplicationConsistencyGroupError":
-		stepHandlersErrors.GetReplicationConsistencyGroupError = true
+	case "GetReplicationConsistencyGroupsError":
+		stepHandlersErrors.GetReplicationConsistencyGroupsError = true
 	case "NoProtectionDomainError":
 		stepHandlersErrors.NoProtectionDomainError = true
 	case "EmptyParametersListError":
@@ -1175,6 +1175,14 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = true
 	case "ReplicationGroupAlreadyDeleted":
 		stepHandlersErrors.ReplicationGroupAlreadyDeleted = true
+	case "ReplicationPairAlreadyExists":
+		stepHandlersErrors.ReplicationPairAlreadyExists = true
+	case "ReplicationPairAlreadyExistsUnretrievable":
+		stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable = true
+	case "SnapshotCreationError":
+		stepHandlersErrors.SnapshotCreationError = true
+	case "GetRCGByIdError":
+		stepHandlersErrors.GetRCGByIdError = true
 	default:
 		return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
@@ -3652,6 +3660,22 @@ func (f *feature) iCallExecuteAction(arg1 string) error {
 	return nil
 }
 
+func (f *feature) iCallCreateStorageProtectionGroupWith(arg1 string) error {
+	ctx := new(context.Context)
+	parameters := make(map[string]string)
+	parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
+	parameters["replication.storage.dell.com/rpo"] = "60"
+	parameters["replication.storage.dell.com/consistencyGroupName"] = arg1
+
+	req := &replication.CreateStorageProtectionGroupRequest{
+		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
+		Parameters:   parameters,
+	}
+
+	f.createStorageProtectionGroupResponse, f.err = f.service.CreateStorageProtectionGroup(*ctx, req)
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
@@ -3818,6 +3842,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call GetStorageProtectionGroupStatus$`, f.iCallGetStorageProtectionGroupStatus)
 	s.Step(`^I call GetStorageProtectionGroupStatus with state "([^"]*)" and mode "([^"]*)"$`, f.iCallGetStorageProtectionGroupStatusWithStateAndMode)
 	s.Step(`^I call ExecuteAction "([^"]*)"$`, f.iCallExecuteAction)
+	s.Step(`^I call CreateStorageProtectionGroup with "([^"]*)"$`, f.iCallCreateStorageProtectionGroupWith)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

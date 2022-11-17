@@ -36,78 +36,82 @@ var (
 	sdcMappingsID string
 
 	stepHandlersErrors struct {
-		FindVolumeIDError                      bool
-		GetVolByIDError                        bool
-		GetStoragePoolsError                   bool
-		PodmonFindSdcError                     bool
-		PodmonVolumeStatisticsError            bool
-		PodmonNoNodeIDError                    bool
-		PodmonNoSystemError                    bool
-		PodmonNoVolumeNoNodeIDError            bool
-		PodmonControllerProbeError             bool
-		PodmonNodeProbeError                   bool
-		PodmonVolumeError                      bool
-		GetSystemSdcError                      bool
-		GetSdcInstancesError                   bool
-		MapSdcError                            bool
-		RemoveMappedSdcError                   bool
-		SDCLimitsError                         bool
-		SIOGatewayVolumeNotFoundError          bool
-		GetStatisticsError                     bool
-		CreateSnapshotError                    bool
-		RemoveVolumeError                      bool
-		VolumeInstancesError                   bool
-		BadVolIDError                          bool
-		NoCsiVolIDError                        bool
-		WrongVolIDError                        bool
-		WrongSystemError                       bool
-		NoEndpointError                        bool
-		NoUserError                            bool
-		NoPasswordError                        bool
-		NoSysNameError                         bool
-		NoAdminError                           bool
-		WrongSysNameError                      bool
-		NoVolumeIDError                        bool
-		SetVolumeSizeError                     bool
-		systemNameMatchingError                bool
-		LegacyVolumeConflictError              bool
-		VolumeIDTooShortError                  bool
-		EmptyEphemeralID                       bool
-		IncorrectEphemeralID                   bool
-		TooManyDashesVolIDError                bool
-		CorrectFormatBadCsiVolID               bool
-		EmptySysID                             bool
-		VolIDListEmptyError                    bool
-		CreateVGSNoNameError                   bool
-		CreateVGSNameTooLongError              bool
-		CreateVGSLegacyVol                     bool
-		CreateVGSAcrossTwoArrays               bool
-		CreateVGSBadTimeError                  bool
-		CreateSplitVGSError                    bool
-		BadVolIDJSON                           bool
-		BadMountPathError                      bool
-		NoMountPathError                       bool
-		NoVolIDError                           bool
-		NoVolIDSDCError                        bool
-		NoVolError                             bool
-		PeerMdmError                           bool
-		CreateVolumeError                      bool
-		BadRemoteSystemIDError                 bool
-		NoProtectionDomainError                bool
-		GetReplicationConsistencyGroupError    bool
-		ReplicationConsistencyGroupError       bool
-		ReplicationPairError                   bool
-		GetReplicationPairError                bool
-		RemoteReplicationConsistencyGroupError bool
-		RemoteRCGBadNameError                  bool
-		EmptyParametersListError               bool
-		RemoveRCGError                         bool
-		NoDeleteReplicationPair                bool
-		BadRemoteSystem                        bool
-		ExecuteActionError                     bool
-		StorageGroupAlreadyExists              bool
-		StorageGroupAlreadyExistsUnretriavable bool
-		ReplicationGroupAlreadyDeleted         bool
+		FindVolumeIDError                         bool
+		GetVolByIDError                           bool
+		GetStoragePoolsError                      bool
+		PodmonFindSdcError                        bool
+		PodmonVolumeStatisticsError               bool
+		PodmonNoNodeIDError                       bool
+		PodmonNoSystemError                       bool
+		PodmonNoVolumeNoNodeIDError               bool
+		PodmonControllerProbeError                bool
+		PodmonNodeProbeError                      bool
+		PodmonVolumeError                         bool
+		GetSystemSdcError                         bool
+		GetSdcInstancesError                      bool
+		MapSdcError                               bool
+		RemoveMappedSdcError                      bool
+		SDCLimitsError                            bool
+		SIOGatewayVolumeNotFoundError             bool
+		GetStatisticsError                        bool
+		CreateSnapshotError                       bool
+		RemoveVolumeError                         bool
+		VolumeInstancesError                      bool
+		BadVolIDError                             bool
+		NoCsiVolIDError                           bool
+		WrongVolIDError                           bool
+		WrongSystemError                          bool
+		NoEndpointError                           bool
+		NoUserError                               bool
+		NoPasswordError                           bool
+		NoSysNameError                            bool
+		NoAdminError                              bool
+		WrongSysNameError                         bool
+		NoVolumeIDError                           bool
+		SetVolumeSizeError                        bool
+		systemNameMatchingError                   bool
+		LegacyVolumeConflictError                 bool
+		VolumeIDTooShortError                     bool
+		EmptyEphemeralID                          bool
+		IncorrectEphemeralID                      bool
+		TooManyDashesVolIDError                   bool
+		CorrectFormatBadCsiVolID                  bool
+		EmptySysID                                bool
+		VolIDListEmptyError                       bool
+		CreateVGSNoNameError                      bool
+		CreateVGSNameTooLongError                 bool
+		CreateVGSLegacyVol                        bool
+		CreateVGSAcrossTwoArrays                  bool
+		CreateVGSBadTimeError                     bool
+		CreateSplitVGSError                       bool
+		BadVolIDJSON                              bool
+		BadMountPathError                         bool
+		NoMountPathError                          bool
+		NoVolIDError                              bool
+		NoVolIDSDCError                           bool
+		NoVolError                                bool
+		PeerMdmError                              bool
+		CreateVolumeError                         bool
+		BadRemoteSystemIDError                    bool
+		NoProtectionDomainError                   bool
+		GetReplicationConsistencyGroupsError      bool
+		ReplicationConsistencyGroupError          bool
+		ReplicationPairError                      bool
+		GetReplicationPairError                   bool
+		RemoteReplicationConsistencyGroupError    bool
+		RemoteRCGBadNameError                     bool
+		EmptyParametersListError                  bool
+		RemoveRCGError                            bool
+		NoDeleteReplicationPair                   bool
+		BadRemoteSystem                           bool
+		ExecuteActionError                        bool
+		StorageGroupAlreadyExists                 bool
+		StorageGroupAlreadyExistsUnretriavable    bool
+		ReplicationGroupAlreadyDeleted            bool
+		ReplicationPairAlreadyExists              bool
+		ReplicationPairAlreadyExistsUnretrievable bool
+		SnapshotCreationError                     bool
+		GetRCGByIdError                           bool
 	}
 )
 
@@ -200,7 +204,7 @@ func getHandler() http.Handler {
 	stepHandlersErrors.CreateVolumeError = false
 	stepHandlersErrors.BadRemoteSystemIDError = false
 	stepHandlersErrors.NoProtectionDomainError = false
-	stepHandlersErrors.GetReplicationConsistencyGroupError = false
+	stepHandlersErrors.GetReplicationConsistencyGroupsError = false
 	stepHandlersErrors.ReplicationConsistencyGroupError = false
 	stepHandlersErrors.ReplicationPairError = false
 	stepHandlersErrors.GetReplicationPairError = false
@@ -214,6 +218,10 @@ func getHandler() http.Handler {
 	stepHandlersErrors.StorageGroupAlreadyExists = false
 	stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = false
 	stepHandlersErrors.ReplicationGroupAlreadyDeleted = false
+	stepHandlersErrors.ReplicationPairAlreadyExists = false
+	stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable = false
+	stepHandlersErrors.SnapshotCreationError = false
+	stepHandlersErrors.GetRCGByIdError = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -444,6 +452,12 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
+
+	if stepHandlersErrors.SnapshotCreationError {
+		writeError(w, "RCG snapshot not created", http.StatusRequestTimeout, codes.Internal)
+		return
+	}
+
 	switch r.Method {
 
 	// Post is CreateVolume; here just return a volume id encoded from the name
@@ -564,7 +578,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		rcgNameToID[req.Name] = resp.ID
 		// add in remote RCG, unless error
 		rcgIDToName[remoteRCGID] = "rem-" + req.Name
-		rcgNameToID["rem-"+req.Name] = remoteRCGID
+		rcgNameToID["rem-"+req.Name] = req.Name
 
 		replicationConsistencyGroups[resp.ID] = make(map[string]string)
 		replicationConsistencyGroups[resp.ID]["Name"] = req.Name
@@ -587,8 +601,8 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			log.Printf("error encoding json: %s\n", err.Error())
 		}
 	case http.MethodGet:
-		if stepHandlersErrors.GetReplicationConsistencyGroupError {
-			writeError(w, "could not GET ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
+		if stepHandlersErrors.GetReplicationConsistencyGroupsError {
+			writeError(w, "could not GET ReplicationConsistencyGroups", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
 		instances := make([]*types.ReplicationConsistencyGroup, 0)
@@ -679,6 +693,12 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 		if true {
 			log.Printf("request name: %s id: %s sourceVolume %s\n", req.Name, resp.ID, req.SourceVolumeID)
 		}
+
+		if stepHandlersErrors.ReplicationPairAlreadyExists || stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable {
+			writeError(w, "A Replication Pair for the specified local volume already exists", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+
 		encoder := json.NewEncoder(w)
 		err = encoder.Encode(resp)
 		if err != nil {
@@ -691,6 +711,10 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 		}
 		instances := make([]*types.ReplicationPair, 0)
 		for id, name := range replicationPairIDToName {
+			if stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable {
+				continue
+			}
+
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = id
 			replacementMap["__NAME__"] = name
@@ -871,6 +895,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		}
 	case "removeReplicationPair":
 		if stepHandlersErrors.NoDeleteReplicationPair {
+			writeError(w, "pairs exist", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
 		sourceVolume := replicationPairIDToSourceVolume[id]
@@ -885,6 +910,10 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		delete(replicationPairIDToDestinationVolume, id)
 		delete(replicationPairNameToID, name)
 	case "createReplicationConsistencyGroupSnapshots":
+		if stepHandlersErrors.ExecuteActionError {
+			writeError(w, "could not execute RCG action", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
 		// volumeIDToAncestorID[id] = "null"
 		snapshotGroupID := uuid.New().String()
 		resp := types.CreateReplicationConsistencyGroupSnapshotResp{}
@@ -923,7 +952,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		fallthrough
 	case "pauseReplicationConsistencyGroup":
 		if stepHandlersErrors.ExecuteActionError {
-			writeError(w, "RCG not in the correct state", http.StatusRequestTimeout, codes.Internal)
+			writeError(w, "could not execute RCG action", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
 	}
@@ -989,13 +1018,13 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "Unsupported relationship from type", http.StatusRequestTimeout, codes.Internal)
 		}
 	case "ProtectionDomain":
-		if from == "System" {
-			returnJSONFile("features", "get_system_instances.json", w, nil)
-		}
-
 		if stepHandlersErrors.NoProtectionDomainError {
 			writeError(w, "induced error NoProtectionDomainError", http.StatusRequestTimeout, codes.Internal)
 			return
+		}
+
+		if from == "System" {
+			returnJSONFile("features", "get_system_instances.json", w, nil)
 		}
 
 		returnJSONFile("features", "get_protection_domains.json", w, nil)
@@ -1052,11 +1081,6 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if stepHandlersErrors.GetReplicationConsistencyGroupError {
-		writeError(w, "could not GET ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
-		return
-	}
-
 	if stepHandlersErrors.ReplicationGroupAlreadyDeleted {
 		writeError(w, "The Replication Consistency Group was not found", http.StatusRequestTimeout, codes.Internal)
 		return
@@ -1093,6 +1117,11 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "volume not found: "+id, http.StatusNotFound, codes.NotFound)
 		}
 	case "ReplicationConsistencyGroup":
+		if stepHandlersErrors.GetRCGByIdError {
+			writeError(w, "could not GET RCG by ID", http.StatusRequestTimeout, codes.Internal)
+			return
+		}
+
 		replacementMap := make(map[string]string)
 		replacementMap["__ID__"] = id
 		replacementMap["__NAME__"] = rcgIDToName[id]

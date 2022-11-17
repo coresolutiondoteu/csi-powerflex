@@ -1,6 +1,6 @@
 {
         "id": "d02aebc400000000",
-        "name": "rem-__NAME__",
+        "name": "__NAME__",
         "rpoInSeconds": 60,
         "protectionDomainId": "928208a900000000",
         "remoteProtectionDomainId": "1dee83c600000000",

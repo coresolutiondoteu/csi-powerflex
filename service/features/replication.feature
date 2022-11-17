@@ -49,30 +49,46 @@ Scenario Outline: Test CreateStorageProtectionGroup
   Then the error contains <errormsg>
   And a <valid> remote volume is returned
   Examples:
-  | name                     | error                                    | errormsg                                            | valid    |
-  | "sourcevol"              | "none"                                   | "none"                                              | "true"   | 
-  | "sourcevol"              | "NoVolIDError"                           | "volume ID is required"                             | "false"  |
-  | "sourcevol"              | "BadVolIDError"                          | "failed to provide"                                 | "false"  |
-  | "sourcevol"              | "EmptyParametersListError"               | "empty parameters list"                             | "false"  |
-  | "sourcevol"              | "controller-probe"                       | "PodmonControllerProbeError"                        | "false"  |
-  | "sourcevol"              | "GetVolByIDError"                        | "can't query volume"                                | "false"  |
-  | "sourcevol"              | "ReplicationConsistencyGroupError"       | "create rcg induced error"                          | "false"  |
-  | "sourcevol"              | "GetReplicationConsistencyGroupError"    | "could not GET ReplicationConsistencyGroup"         | "false"  |
-  | "sourcevol"              | "ProbePrimaryError"                      | "PodmonControllerProbeError"                        | "false"  |
-  | "sourcevol"              | "ProbeSecondaryError"                    | "PodmonControllerProbeError"                        | "false"  |
-  # | "sourcevol"              | "NoProtectionDomainError"                | "NoProtectionDomainError"                           | "false"  |
-  | "sourcevol"              | "ReplicationPairError"                   | "POST ReplicationPair induced error"                | "false"  |
-  | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"		              | "false"  |
-  | "sourcevol"              | "PeerMdmError"                           | "PeerMdmError"                                      | "false"  |
-  | "sourcevol"              | "RemoteReplicationConsistencyGroupError" | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
-  # | "sourcevol"              | "NoProtectionDomainError"                | "induced error"                                     | "false"  |
-  | "sourcevol"              | "BadRemoteSystem"                        | "couldn't getSystem (remote)"                       | "false"  |
-  | "sourcevol"              | "FindVolumeIDError"                      | "can't find volume replicated-sourcevol by name"    | "false"  |
-  | "sourcevol"              | "StorageGroupAlreadyExists"              | "none"                                              | "true"   | 
-  | "sourcevol"              | "StorageGroupAlreadyExistsUnretriavable" | "couldn't find replication consistency group"       | "false"  |
+  | name                     | error                                       | errormsg                                            | valid    |
+  | "sourcevol"              | "none"                                      | "none"                                              | "true"   | 
+  | "sourcevol"              | "NoVolIDError"                              | "volume ID is required"                             | "false"  |
+  | "sourcevol"              | "BadVolIDError"                             | "failed to provide"                                 | "false"  |
+  | "sourcevol"              | "EmptyParametersListError"                  | "empty parameters list"                             | "false"  |
+  | "sourcevol"              | "controller-probe"                          | "PodmonControllerProbeError"                        | "false"  |
+  | "sourcevol"              | "GetVolByIDError"                           | "can't query volume"                                | "false"  |
+  | "sourcevol"              | "ReplicationConsistencyGroupError"          | "create rcg induced error"                          | "false"  |
+  | "sourcevol"              | "GetReplicationConsistencyGroupsError"      | "could not GET ReplicationConsistencyGroups"       | "false"  |
+  | "sourcevol"              | "GetRCGByIdError"                           | "could not GET RCG by ID"                           | "false"  |
+  | "sourcevol"              | "ProbePrimaryError"                         | "PodmonControllerProbeError"                        | "false"  |
+  | "sourcevol"              | "ProbeSecondaryError"                       | "PodmonControllerProbeError"                        | "false"  |
+  | "sourcevol"              | "NoProtectionDomainError"                   | "NoProtectionDomainError"                           | "false"  |
+  | "sourcevol"              | "ReplicationPairError"                      | "POST ReplicationPair induced error"                | "false"  |
+  | "sourcevol"              | "GetReplicationPairError"                   | "GET ReplicationPair induced error"		             | "false"  |
+  | "sourcevol"              | "PeerMdmError"                              | "PeerMdmError"                                      | "false"  |
+  | "sourcevol"              | "RemoteReplicationConsistencyGroupError"    | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
+  | "sourcevol"              | "BadRemoteSystem"                           | "couldn't getSystem (remote)"                       | "false"  |
+  | "sourcevol"              | "FindVolumeIDError"                         | "can't find volume replicated-sourcevol by name"    | "false"  |
+  | "sourcevol"              | "StorageGroupAlreadyExists"                 | "none"                                              | "true"   | 
+  | "sourcevol"              | "StorageGroupAlreadyExistsUnretriavable"    | "couldn't find replication consistency group"       | "false"  |
+  | "sourcevol"              | "ReplicationPairAlreadyExists"              | "none"                                              | "true"   |
+  | "sourcevol"              | "ReplicationPairAlreadyExistsUnretrievable" | "couldn't find replication pair"                    | "false"  |
 
 @replication
-Scenario Outline: Test DeleteStorageProtectionGroup 
+Scenario Outline: Test CreateStorageProtectionGroup with group name
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I induce error <error>
+  And I call CreateStorageProtectionGroup with <group name>
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name          | group name | error                                       | errormsg                                            | valid    |
+  | "sourcevol"   | "rcg-1"    | "none"                                      | "none"                                              | "true"   | 
+
+@replication
+Scenario Outline: Test DeleteStorageProtectionGroup up to volume
   Given a VxFlexOS service
   And I use config "replication-config"
   When I call CreateVolume <name>
@@ -80,14 +96,14 @@ Scenario Outline: Test DeleteStorageProtectionGroup
   And I call CreateStorageProtectionGroup
   And I induce error <error>
   And I call DeleteVolume <name>
-  And I call DeleteStorageProtectionGroup
   Then the error contains <errormsg>
   And a <valid> remote volume is returned
   Examples:
-  | name                     | error                        | errormsg                                           | valid    |
-  | "sourcevol"              | "none"                       | "none"                                             | "true"   | 
-  | "sourcevol"              | "RemoveRCGError"             | "error deleting the replication consistency group" | "false"  | 
-  | "sourcevol"              | "NoDeleteReplicationPair"    | "pairs exist"                                      | "false"  |
+  | name                     | error                                       | errormsg                                           | valid    |
+  | "sourcevol"              | "none"                                      | "none"                                             | "true"   | 
+  | "sourcevol"              | "NoDeleteReplicationPair"                   | "pairs exist"                                      | "false"  |
+  | "sourcevol"              | "ReplicationPairAlreadyExistsUnretrievable" | "error removing replication pair"                  | "false"  |
+  | "sourcevol"              | "GetReplicationPairError"                   | "GET ReplicationPair induced error"                | "false"  |
 
 @replication
 Scenario Outline: Test DeleteStorageProtectionGroup 
@@ -106,7 +122,7 @@ Scenario Outline: Test DeleteStorageProtectionGroup
   | "sourcevol"              | "none"                                | "none"                                             | "true"   | 
   | "sourcevol"              | "GetReplicationPairError"             | "GET ReplicationPair induced error"                | "false"  |
   | "sourcevol"              | "ReplicationGroupAlreadyDeleted"      | "none"                                             | "true"   |
-  | "sourcevol"              | "GetReplicationConsistencyGroupError" | "could not GET ReplicationConsistencyGroup"        | "false"  |
+  | "sourcevol"              | "GetRCGByIdError"                     | "could not GET RCG by ID"                          | "false"  |
 
 @replication
 Scenario Outline: Test GetStorageProtectionGroupStatus 
@@ -122,7 +138,7 @@ Scenario Outline: Test GetStorageProtectionGroupStatus
   Examples:
   | name                     | error                                    | errormsg                                           | valid    |
   | "sourcevol"              | "none"                                   | "none"                                             | "true"   |
-  | "sourcevol"              | "GetReplicationConsistencyGroupError"    | "could not GET ReplicationConsistencyGroup"        | "false"  |
+  | "sourcevol"              | "GetRCGByIdError"                        | "could not GET RCG by ID"                          | "false"  |
   | "sourcevol"              | "GetReplicationPairError"                | "GET ReplicationPair induced error"                | "false"  |
 
 @replication
@@ -171,16 +187,19 @@ Scenario Outline: Test ExecuteAction
   Then the error contains <errormsg>
   And a <valid> remote volume is returned
   Examples:
-  | name                     | error                | errormsg                       | action              | valid   | state      | mode          |
-  | "sourcevol"              | "none"               | "none"                         | "CreateSnapshot"    | "true"  | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "FailoverRemote"    | "true"  | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "FailoverRemote"    | "false" | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "UnplannedFailover" | "true"  | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "UnplannedFailover" | "false" | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "ReprotectLocal"    | "true"  | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "ReprotectLocal"    | "false" | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "Resume"            | "true"  | "Failover" | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "Resume"            | "true"  | "Paused"   | "Consistent"  |
-  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "Resume"            | "false" | "Failover" | "Consistent"  |
-  | "sourcevol"              | "none"               | "none"                         | "Suspend"           | "true"  | "Normal"   | "Consistent"  |
-  | "sourcevol"              | "ExecuteActionError" | "RCG not in the correct state" | "Suspend"           | "false" | "Normal"   | "Consistent"  |
+  | name                     | error                     | errormsg                            | action              | valid   | state      | mode          |
+  | "sourcevol"              | "none"                    | "none"                              | "CreateSnapshot"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "CreateSnapshot"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "SnapshotCreationError"   | "RCG snapshot not created"          | "CreateSnapshot"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "FailoverRemote"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "FailoverRemote"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "UnplannedFailover" | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "UnplannedFailover" | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "ReprotectLocal"    | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "ReprotectLocal"    | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "Resume"            | "true"  | "Failover" | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "Resume"            | "true"  | "Paused"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "Resume"            | "false" | "Failover" | "Consistent"  |
+  | "sourcevol"              | "none"                    | "none"                              | "Suspend"           | "true"  | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "ExecuteActionError"      | "could not execute RCG action"      | "Suspend"           | "false" | "Normal"   | "Consistent"  |
+  | "sourcevol"              | "none"                    | "not match with supported actions"  | "Unknown"           | "false" | "Normal"   | "Consistent"  |
