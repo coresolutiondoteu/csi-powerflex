@@ -38,7 +38,7 @@ Scenario Outline: Test CreateRemoteVolume
   | "sourcevol"              | "ProbeSecondaryError"        | "PodmonControllerProbeError"       | "false"  |
 
 
-@replication
+@replication-wip
 Scenario Outline: Test CreateStorageProtectionGroup
   Given a VxFlexOS service
   And I use config "replication-config"
@@ -68,6 +68,8 @@ Scenario Outline: Test CreateStorageProtectionGroup
   # | "sourcevol"              | "NoProtectionDomainError"                | "induced error"                                     | "false"  |
   | "sourcevol"              | "BadRemoteSystem"                        | "couldn't getSystem (remote)"                       | "false"  |
   | "sourcevol"              | "FindVolumeIDError"                      | "can't find volume replicated-sourcevol by name"    | "false"  |
+  | "sourcevol"              | "StorageGroupAlreadyExists"              | "none"                                              | "true"   | 
+  | "sourcevol"              | "StorageGroupAlreadyExistsUnretriavable" | "couldn't find replication consistency group"       | "false"  |
 
 @replication
 Scenario Outline: Test DeleteStorageProtectionGroup 
