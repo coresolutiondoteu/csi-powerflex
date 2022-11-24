@@ -385,10 +385,13 @@ func contains(list []string, item string) bool {
 // mkfile creates a file specified by the path if needed.
 // return pair is a bool flag of whether file was created, and an error
 func mkfile(path string) (bool, error) {
+	log.Println("vamsi *** I am in the mkfile function of mount.go")
+	log.Println("vami *** path:", path)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		/* #nosec G302 G304 */
-		file, err := os.OpenFile(path, os.O_CREATE, 0755)
+		log.Println("vamsi *** inside the osIsNotExist fn of mkfile..")
+		file, err := os.OpenFile(path, os.O_CREATE, 0777)
 		if err != nil {
 			Log.WithField("dir", path).WithError(
 				err).Error("Unable to create dir")
@@ -413,9 +416,11 @@ func mkfile(path string) (bool, error) {
 // return pair is a bool flag of whether dir was created, and an error
 func mkdir(path string) (bool, error) {
 	log.Println(" vamsi ****I am in the mkdir function. of mount.go")
+	log.Println("vamsi **** path:", path)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		/* #nosec G301 */
+		log.Println("vamsi *** inside the osIsNotExist fn.. of mkdir")
 		if err := os.Mkdir(path, 0777); err != nil {
 			Log.WithField("dir", path).WithError(
 				err).Error("Unable to create dir")
