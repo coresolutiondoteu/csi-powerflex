@@ -133,10 +133,11 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 		return nil, status.Errorf(codes.Internal, "couldn't getSystem (local): %s", err.Error())
 	}
 
-	localProtectionDomain, err := s.getProtectionDomain(systemID, localSystem)
+	localProtectionDomain, err := s.getProtectionDomain(systemID, localSystem, parameters["protectionDomain"])
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "couldn't getProtectionDomain (local): %s", err.Error())
 	}
+
 	Log.Printf("[CreateStorageProtectionGroup] - Local Protection Domain: %+v", localProtectionDomain)
 
 	remoteSystemID := parameters["replication.storage.dell.com/remoteSystem"]
@@ -145,7 +146,7 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 		return nil, status.Errorf(codes.Internal, "couldn't getSystem (remote): %s", err.Error())
 	}
 
-	remoteProtectionDomain, err := s.getProtectionDomain(remoteSystemID, remoteSystem)
+	remoteProtectionDomain, err := s.getProtectionDomain(remoteSystemID, remoteSystem, parameters["replication.storage.dell.com/protectionDomain"])
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +164,8 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	}
 
 	localRcg, err := s.CreateReplicationConsistencyGroup(systemID, consistencyGroupName,
-		parameters["replication.storage.dell.com/rpo"], localProtectionDomain[0].ID,
-		remoteProtectionDomain[0].ID, "", remoteSystem.ID)
+		parameters["replication.storage.dell.com/rpo"], localProtectionDomain,
+		remoteProtectionDomain, "", remoteSystem.ID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "invalid rcg response: %s", err.Error())
 	}
