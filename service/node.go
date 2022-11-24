@@ -17,6 +17,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -173,6 +174,8 @@ func (s *service) NodePublishVolume(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
+	log.Println("*** vamsi ***iam in the nodepublish volume fn.")
 
 	if err := publishVolume(req, s.privDir, sdcMappedVol.SdcDevice, reqID); err != nil {
 		return nil, err

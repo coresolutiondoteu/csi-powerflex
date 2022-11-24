@@ -16,6 +16,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -411,10 +412,11 @@ func mkfile(path string) (bool, error) {
 // mkdir creates the directory specified by path if needed.
 // return pair is a bool flag of whether dir was created, and an error
 func mkdir(path string) (bool, error) {
+	log.Println(" vamsi ****I am in the mkdir function. of mount.go")
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		/* #nosec G301 */
-		if err := os.Mkdir(path, 0755); err != nil {
+		if err := os.Mkdir(path, 0777); err != nil {
 			Log.WithField("dir", path).WithError(
 				err).Error("Unable to create dir")
 			return false, err
