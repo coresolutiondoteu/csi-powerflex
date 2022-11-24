@@ -622,24 +622,38 @@ func (s *service) getSystem(systemID string) (*siotypes.System, error) {
 	return nil, fmt.Errorf("System %s not found", systemID)
 }
 
-func (s *service) getProtectionDomain(systemID string, system *siotypes.System) ([]*siotypes.ProtectionDomain, error) {
+func (s *service) getProtectionDomain(systemID string, system *siotypes.System, pdName string) (string, error) {
 	adminClient := s.adminClients[systemID]
 	if adminClient == nil {
-		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+		return "", fmt.Errorf("can't find adminClient by id %s", systemID)
 	}
 
-	// Gets the desired system content. Needed for remote replication.
-	theSystem, err := adminClient.FindSystem(system.ID, "", "")
-	if err != nil {
-		return nil, err
+	var pdID string
+	var err error
+
+	if pdName != "" {
+		Log.Printf("[getProtectionDomain] - PD Provived: %s, System: %s", pdName, systemID)
+		pdID, err = s.getProtectionDomainIDFromName(systemID, pdName)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		theSystem, err := adminClient.FindSystem(system.ID, "", "")
+		if err != nil {
+			return "", err
+		}
+
+		pd, err := theSystem.GetProtectionDomain("")
+		if err != nil {
+			return "", err
+		}
+
+		Log.Printf("[getProtectionDomain] - PD not provived, using: %s, System: %s", pd[0].Name, systemID)
+
+		pdID = pd[0].ID
 	}
 
-	pd, err := theSystem.GetProtectionDomain("")
-	if err != nil {
-		return nil, err
-	}
-
-	return pd, nil
+	return pdID, nil
 }
 
 func (s *service) removeVolumeFromReplicationPair(systemID string, volumeID string) (*siotypes.ReplicationPair, error) {
