@@ -281,8 +281,9 @@ func (s *service) CreateRemoteVolume(ctx context.Context, req *replication.Creat
 	}
 
 	remoteStoragePool := parameters["replication.storage.dell.com/remoteStoragePool"]
+	protectionDomain := parameters["replication.storage.dell.com/protectionDomain"]
 	name := "replicated-" + vol.Name
-	volReq := createRemoteCreateVolumeRequest(name, remoteStoragePool, remoteSystem.ID, int64(vol.SizeInKb))
+	volReq := createRemoteCreateVolumeRequest(name, remoteStoragePool, remoteSystem.ID, protectionDomain, int64(vol.SizeInKb))
 
 	createVolumeResponse, err := s.CreateVolume(ctx, volReq)
 	if err != nil {
@@ -510,11 +511,12 @@ func getRemoteCSIVolume(volumeID string, size int) *replication.Volume {
 	return volume
 }
 
-func createRemoteCreateVolumeRequest(name, storagePool, systemID string, sizeInKb int64) *csi.CreateVolumeRequest {
+func createRemoteCreateVolumeRequest(name, storagePool, systemID, protectionDomain string, sizeInKb int64) *csi.CreateVolumeRequest {
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
-	params["storagepool"] = storagePool
-	params["systemID"] = systemID
+	params[KeyStoragePool] = storagePool
+	params[KeySystemID] = systemID
+	params[KeyProtectionDomain] = protectionDomain
 	req.Parameters = params
 	req.Name = name
 	capacityRange := new(csi.CapacityRange)
