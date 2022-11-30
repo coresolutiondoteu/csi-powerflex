@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -160,7 +161,13 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	if parameters["replication.storage.dell.com/consistencyGroupName"] != "" {
 		consistencyGroupName = parameters["replication.storage.dell.com/consistencyGroupName"]
 	} else {
-		consistencyGroupName = "rcg-" + systemID[:12] + "-" + remoteSystem.ID[:12]
+		remoteClusterID := parameters["replication.storage.dell.com/remoteClusterID"]
+		rpo := parameters["replication.storage.dell.com/rpo"]
+		consistencyGroupName, err = s.createUniqueConsistencyGroupName(systemID, remoteSystemID, rpo, localProtectionDomain, remoteProtectionDomain, remoteClusterID)
+		Log.Printf("[CreateStorageProtectionGroup] - consistencyGroupName: %+s", consistencyGroupName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	localRcg, err := s.CreateReplicationConsistencyGroup(systemID, consistencyGroupName,
@@ -566,4 +573,48 @@ func (s *service) getConsistencyGroupSnapshotContent(localSystem, remoteSystem, 
 	}
 
 	return actionAttributes, nil
+}
+
+func (s *service) createUniqueConsistencyGroupName(systemID, remoteSystemId, rpo, localPd, remotePd, remoteClusterID string) (string, error) {
+	var consistencyGroupName string
+
+	if remoteClusterID == "self" {
+		consistencyGroupName += "rcg-self-"
+	} else {
+		consistencyGroupName += "rcg-remote-"
+	}
+
+	consistencyGroupName += systemID[:6] + "-" + remoteSystemId[:6] + "-v"
+
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return "", fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	rcgs, err := adminClient.GetReplicationConsistencyGroups()
+	if err != nil {
+		return "", err
+	}
+
+	version := 1
+	var found bool
+	for _, rcg := range rcgs {
+		if strings.Contains(rcg.Name, consistencyGroupName) {
+			if rcg.ProtectionDomainId == localPd && rcg.RemoteProtectionDomainId == remotePd && strconv.Itoa(rcg.RpoInSeconds) == rpo {
+				consistencyGroupName = rcg.Name
+				found = true
+				break
+			} else {
+				if rcg.Name[len(rcg.Name)-1:] == strconv.Itoa(version) {
+					version++
+				}
+			}
+		}
+	}
+
+	if !found {
+		consistencyGroupName += strconv.Itoa(version)
+	}
+
+	return consistencyGroupName, nil
 }
