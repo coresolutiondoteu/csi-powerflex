@@ -163,7 +163,9 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *replica
 	} else {
 		remoteClusterID := parameters["replication.storage.dell.com/remoteClusterID"]
 		rpo := parameters["replication.storage.dell.com/rpo"]
-		consistencyGroupName, err = s.createUniqueConsistencyGroupName(systemID, remoteSystemID, rpo, localProtectionDomain, remoteProtectionDomain, remoteClusterID)
+		clusterUID := parameters["clusterUID"]
+		consistencyGroupName, err = s.createUniqueConsistencyGroupName(systemID, remoteSystemID, rpo,
+			localProtectionDomain, remoteProtectionDomain, remoteClusterID, clusterUID)
 		Log.Printf("[CreateStorageProtectionGroup] - consistencyGroupName: %+s", consistencyGroupName)
 		if err != nil {
 			return nil, err
@@ -575,16 +577,24 @@ func (s *service) getConsistencyGroupSnapshotContent(localSystem, remoteSystem, 
 	return actionAttributes, nil
 }
 
-func (s *service) createUniqueConsistencyGroupName(systemID, remoteSystemId, rpo, localPd, remotePd, remoteClusterID string) (string, error) {
+func (s *service) createUniqueConsistencyGroupName(systemID, remoteSystemId, rpo, localPd, remotePd, remoteClusterID, clusterUID string) (string, error) {
 	var consistencyGroupName string
+	clusterUID = strings.Replace(clusterUID, "-", "", -1)
+	remoteClusterID = strings.Replace(remoteClusterID, "-", "", -1)
 
 	if remoteClusterID == "self" {
-		consistencyGroupName += "rcg-self-"
+		consistencyGroupName += "rcg-"
+		consistencyGroupName += clusterUID[:6] + "-v"
 	} else {
-		consistencyGroupName += "rcg-remote-"
-	}
+		consistencyGroupName += "rcg-"
+		remoteClusterID = strings.ReplaceAll(remoteClusterID, "cluster", "")
 
-	consistencyGroupName += systemID[:6] + "-" + remoteSystemId[:6] + "-v"
+		if len(remoteClusterID) > 7 {
+			consistencyGroupName += clusterUID[:6] + "-" + remoteClusterID[:6] + "-v"
+		} else {
+			consistencyGroupName += clusterUID[:6] + "-" + remoteClusterID + "-v"
+		}
+	}
 
 	adminClient := s.adminClients[systemID]
 	if adminClient == nil {
