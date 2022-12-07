@@ -2327,6 +2327,7 @@ func (s *service) DeleteSnapshotConsistencyGroup(
 }
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+	Log.Printf("[ControllerExpandVolume] req: %+v", req)
 
 	var reqID string
 	var err error
@@ -2402,6 +2403,16 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		return &csi.ControllerExpandVolumeResponse{
 			CapacityBytes:         requestedSize * bytesInKiB,
 			NodeExpansionRequired: true}, nil
+	}
+
+	// If volume is marked for replication, remove the replication pair first (TBD).
+	if vol.VolumeReplicationState != "UnmarkedForReplication" {
+		Log.Printf("[ControllerExpandVolume] - vol: %+v", vol)
+		err := s.expandReplicationPair(ctx, req, systemID, volID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal,
+				"error expanding replication pair: %s", err.Error())
+		}
 	}
 
 	reqSize := requestedSize / kiBytesInGiB

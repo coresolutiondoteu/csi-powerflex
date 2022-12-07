@@ -688,6 +688,75 @@ func (s *service) removeVolumeFromReplicationPair(systemID string, volumeID stri
 	return resp, nil
 }
 
+func (s *service) findReplicationPairByVolId(systemID, volumeID string) (*siotypes.ReplicationPair, error) {
+	adminClient := s.adminClients[systemID]
+	if adminClient == nil {
+		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
+	}
+
+	// Gets a list of all replication pairs.
+	pairs, err := adminClient.GetReplicationPairs("")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pair := range pairs {
+		if volumeID == pair.LocalVolumeID {
+			return pair, nil
+		}
+	}
+
+	return nil, fmt.Errorf("replication pair for volume ID: %s, not found", volumeID)
+}
+
+func (s *service) expandReplicationPair(ctx context.Context, req *csi.ControllerExpandVolumeRequest, systemID, volumeID string) error {
+	Log.Printf("[expandReplicationPair] - Start: %s, %s", systemID, volumeID)
+	pair, err := s.findReplicationPairByVolId(systemID, volumeID)
+	if err != nil {
+		return err
+	}
+
+	Log.Printf("[expandReplicationPair] - Pair Found: %+v", pair)
+	group, err := s.getReplicationConsistencyGroupById(systemID, pair.ReplicationConsistencyGroupID)
+	if err != nil {
+		return err
+	}
+
+	Log.Printf("[expandReplicationPair] - Group Found: %+v", group)
+	// Avoid getting in a expand attempt cycle.
+	if group.ReplicationDirection == "RemoteToLocal" {
+		Log.Printf("[expandReplicationPair] - Only want to expand from LocalToRemote, if first call, there might be an issue.")
+		return nil
+	}
+
+	req.VolumeId = group.RemoteMdmId + "-" + pair.RemoteVolumeID
+
+	resp, err := s.ControllerExpandVolume(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	Log.Printf("[expandReplicationPair] - ControllerExpandVolume expanded the remote volume first: %+v", resp)
+	Log.Printf("[expandReplicationPair] - Ensuring remote has expanded...")
+
+	requestedSize, err := validateVolSize(req.CapacityRange)
+	if err != nil {
+		return err
+	}
+
+	vol, _ := s.getVolByID(volumeID, systemID)
+
+	counter := 0
+
+	for int64(vol.SizeInKb) != requestedSize && counter < 100 {
+		time.Sleep(3 * time.Millisecond)
+		vol, _ = s.getVolByID(volumeID, systemID)
+		counter = counter + 1
+	}
+
+	return nil
+}
+
 // Provide periodic logging of statistics like goroutines and memory
 func (s *service) logStatistics() {
 	if s.statisticsCounter = s.statisticsCounter + 1; (s.statisticsCounter % 100) == 0 {
