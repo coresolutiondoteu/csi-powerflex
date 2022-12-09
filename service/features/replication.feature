@@ -74,18 +74,38 @@ Scenario Outline: Test CreateStorageProtectionGroup
   | "sourcevol"              | "ReplicationPairAlreadyExistsUnretrievable" | "couldn't find replication pair"                    | "false"  |
 
 @replication
-Scenario Outline: Test CreateStorageProtectionGroup with group name
+Scenario Outline: Test CreateStorageProtectionGroup with arguments
   Given a VxFlexOS service
   And I use config "replication-config"
   When I call CreateVolume <name>
   And I call CreateRemoteVolume
   And I induce error <error>
-  And I call CreateStorageProtectionGroup with <group name>
+  And I call CreateStorageProtectionGroup with <group name>, <remote cluster id>, <rpo>
   Then the error contains <errormsg>
   And a <valid> remote volume is returned
   Examples:
-  | name          | group name | error                                       | errormsg                                            | valid    |
-  | "sourcevol"   | "rcg-1"    | "none"                                      | "none"                                              | "true"   | 
+  | name          | group name | remote cluster id | rpo  | error  | errormsg | valid    |
+  | "sourcevol"   | "rcg-1"    | "cluster-k211"    | "60" | "none" | "none"   | "true"   | 
+  | "sourcevol"   | ""         | "cluster-k211"    | "60" | "none" | "none"   | "true"   | 
+  | "sourcevol"   | ""         | "self"            | "60" | "none" | "none"   | "true"   | 
+  | "sourcevol"   | ""         | "k211-boston"     | "60" | "none" | "none"   | "true"   | 
+
+@replication
+Scenario Outline: Test multiple CreateStorageProtectionGroup calls
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name1>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup with <group name>, <remote cluster id>, <rpo>
+  When I call CreateVolume <name2>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup with <group name>, <remote cluster id>, <rpo2>
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name1     | name2     | group name | remote cluster id | rpo  | rpo2   | errormsg | valid    |
+  | "1srcVol" | "2srcVol" | ""         | "cluster-k211"    | "60" | "60"   | "none"   | "true"   | 
+  | "1srcVol" | "2srcVol" | ""         | "cluster-k211"    | "60" | "120"  | "none"   | "true"   | 
 
 @replication
 Scenario Outline: Test DeleteStorageProtectionGroup up to volume

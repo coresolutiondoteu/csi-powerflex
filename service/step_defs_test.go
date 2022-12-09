@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -145,6 +146,7 @@ type feature struct {
 	snapshotIndex                         int
 	volumeID                              string
 	VolumeGroupSnapshot                   *volGroupSnap.CreateVolumeGroupSnapshotResponse
+	clusterUID                            string
 }
 
 func (f *feature) checkGoRoutines(tag string) {
@@ -273,6 +275,7 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	} else {
 		f.server = nil
 	}
+	f.clusterUID = uuid.New().String()
 	f.checkGoRoutines("end aVxFlexOSService")
 	return nil
 }
@@ -3460,13 +3463,20 @@ func (f *feature) iCallCreateRemoteVolume() error {
 func (f *feature) iCallCreateStorageProtectionGroup() error {
 	ctx := new(context.Context)
 	parameters := make(map[string]string)
+
+	// Must be repeatable.
+	clusterUID := f.clusterUID
+
 	if !stepHandlersErrors.EmptyParametersListError {
 		parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
 		parameters["replication.storage.dell.com/rpo"] = "60"
+		parameters["clusterUID"] = clusterUID
 	}
+
 	if stepHandlersErrors.BadRemoteSystem {
 		parameters["replication.storage.dell.com/remoteSystem"] = "xxx"
 	}
+
 	req := &replication.CreateStorageProtectionGroupRequest{
 		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
 		Parameters:   parameters,
@@ -3660,12 +3670,18 @@ func (f *feature) iCallExecuteAction(arg1 string) error {
 	return nil
 }
 
-func (f *feature) iCallCreateStorageProtectionGroupWith(arg1 string) error {
+func (f *feature) iCallCreateStorageProtectionGroupWith(arg1, arg2, arg3 string) error {
 	ctx := new(context.Context)
 	parameters := make(map[string]string)
+
+	// Must be repeatable.
+	clusterUID := f.clusterUID
+
+	parameters["clusterUID"] = clusterUID
 	parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
-	parameters["replication.storage.dell.com/rpo"] = "60"
+	parameters["replication.storage.dell.com/rpo"] = arg3
 	parameters["replication.storage.dell.com/consistencyGroupName"] = arg1
+	parameters["replication.storage.dell.com/remoteClusterID"] = arg2
 
 	req := &replication.CreateStorageProtectionGroupRequest{
 		VolumeHandle: f.createVolumeResponse.GetVolume().VolumeId,
@@ -3842,7 +3858,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call GetStorageProtectionGroupStatus$`, f.iCallGetStorageProtectionGroupStatus)
 	s.Step(`^I call GetStorageProtectionGroupStatus with state "([^"]*)" and mode "([^"]*)"$`, f.iCallGetStorageProtectionGroupStatusWithStateAndMode)
 	s.Step(`^I call ExecuteAction "([^"]*)"$`, f.iCallExecuteAction)
-	s.Step(`^I call CreateStorageProtectionGroup with "([^"]*)"$`, f.iCallCreateStorageProtectionGroupWith)
+	s.Step(`^I call CreateStorageProtectionGroup with "([^"]*)", "([^"]*)", "([^"]*)"$`, f.iCallCreateStorageProtectionGroupWith)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {

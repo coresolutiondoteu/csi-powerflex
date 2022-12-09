@@ -560,7 +560,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			// duplicate rcg name response
 			log.Printf("request for rcg creation of duplicate name: %s\n", req.Name)
 			resp := new(types.Error)
-			resp.Message = "RCG name already in use"
+			resp.Message = "The Replication Consistency Group already exists"
 			resp.HTTPStatusCode = http.StatusInternalServerError
 			resp.ErrorCode = 6
 			encoder := json.NewEncoder(w)
