@@ -253,7 +253,6 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	// Get the httptest mock handler. Only set
 	// a new server if there isn't one already.
 	handler := getHandler()
-	// handler2 := getHandler()
 	if handler != nil {
 		if f.server == nil {
 			f.server = httptest.NewServer(handler)
@@ -265,16 +264,6 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 				f.service.opts.arrays[arrayID2].Endpoint = f.server2.URL
 			}
 		}
-		// addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
-		// addPreConfiguredVolume(sdcVolume2, "sdcVolume2")
-		// addPreConfiguredVolume(sdcVolume0, "sdcVolume0")
-		// addPreConfiguredVolume(goodVolumeID, goodVolumeName)
-		// addPreConfiguredVolume(snapVolumeID, snapVolumeName)
-		// addPreConfiguredVolume(altVolumeID, altVolumeName)
-		// addPreConfiguredVolume(badVolumeID2, badVolumeID2)
-		// addPreConfiguredVolume(snappedVolumeID, snappedVolumeName)
-		// addPreConfiguredVolume("72cee42500000003", "vol72cee42500000003")
-		// addPreConfiguredVolume("456ca4fc00000009", "vol456ca4fc00000009")
 	} else {
 		f.server = nil
 	}
@@ -291,6 +280,8 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	systemArrays[addr2].Init()
 
 	systemArrays[addr].Link(systemArrays[addr2])
+
+	inducedError = errors.New("")
 
 	f.clusterUID = uuid.New().String()
 	f.checkGoRoutines("end aVxFlexOSService")
@@ -924,6 +915,7 @@ func (f *feature) iChangeTheStoragePool(storagePoolName string) error {
 
 func (f *feature) iInduceError(errtype string) error {
 	log.Printf("set induce error %s\n", errtype)
+	inducedError = errors.New(errtype)
 	switch errtype {
 	case "WrongSysNameError":
 		stepHandlersErrors.WrongSysNameError = true
@@ -1155,8 +1147,6 @@ func (f *feature) iInduceError(errtype string) error {
 		stepHandlersErrors.CreateVGSBadTimeError = true
 	case "CreateSplitVGSError":
 		stepHandlersErrors.CreateSplitVGSError = true
-	case "BadRemoteSystemIDError":
-		stepHandlersErrors.BadRemoteSystemIDError = true
 	case "ProbePrimaryError":
 		f.service.adminClients[arrayID] = nil
 		f.service.systems[arrayID] = nil
@@ -1165,46 +1155,9 @@ func (f *feature) iInduceError(errtype string) error {
 		f.service.adminClients[arrayID2] = nil
 		f.service.systems[arrayID2] = nil
 		stepHandlersErrors.PodmonControllerProbeError = true
-	case "ReplicationConsistencyGroupError":
-		stepHandlersErrors.ReplicationConsistencyGroupError = true
-	case "GetReplicationConsistencyGroupsError":
-		stepHandlersErrors.GetReplicationConsistencyGroupsError = true
-	case "NoProtectionDomainError":
-		stepHandlersErrors.NoProtectionDomainError = true
-	case "EmptyParametersListError":
-		stepHandlersErrors.EmptyParametersListError = true
-	case "ReplicationPairError":
-		stepHandlersErrors.ReplicationPairError = true
-	case "GetReplicationPairError":
-		stepHandlersErrors.GetReplicationPairError = true
-	case "RemoteReplicationConsistencyGroupError":
-		stepHandlersErrors.RemoteReplicationConsistencyGroupError = true
-	case "RemoteRCGBadNameError":
-		stepHandlersErrors.RemoteRCGBadNameError = true
-	case "RemoveRCGError":
-		stepHandlersErrors.RemoveRCGError = true
-	case "NoDeleteReplicationPair":
-		stepHandlersErrors.NoDeleteReplicationPair = true
-	case "BadRemoteSystem":
-		stepHandlersErrors.BadRemoteSystem = true
-	case "ExecuteActionError":
-		stepHandlersErrors.ExecuteActionError = true
-	case "StorageGroupAlreadyExists":
-		stepHandlersErrors.StorageGroupAlreadyExists = true
-	case "StorageGroupAlreadyExistsUnretriavable":
-		stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = true
-	case "ReplicationGroupAlreadyDeleted":
-		stepHandlersErrors.ReplicationGroupAlreadyDeleted = true
-	case "ReplicationPairAlreadyExists":
-		stepHandlersErrors.ReplicationPairAlreadyExists = true
-	case "ReplicationPairAlreadyExistsUnretrievable":
-		stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable = true
-	case "SnapshotCreationError":
-		stepHandlersErrors.SnapshotCreationError = true
-	case "GetRCGByIdError":
-		stepHandlersErrors.GetRCGByIdError = true
 	default:
-		return fmt.Errorf("Don't know how to induce error %q", errtype)
+		fmt.Println("Error drop off, make sure you included the error...")
+		// return fmt.Errorf("Don't know how to induce error %q", errtype)
 	}
 	return nil
 }
@@ -1806,18 +1759,6 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVoltypeAccessFstype(voltype
 // thereAreValidVolumes creates the requested number of volumes
 // for the test scenario, using a suffix.
 func (f *feature) thereAreValidVolumes(n int) error {
-	// Remove the pre-configured volumes
-	// removePreConfiguredVolume(sdcVolume1)
-	// removePreConfiguredVolume(sdcVolume2)
-	// removePreConfiguredVolume(sdcVolume0)
-	// removePreConfiguredVolume(goodVolumeID)
-	// removePreConfiguredVolume(snapVolumeID)
-	// removePreConfiguredVolume(altVolumeID)
-	// removePreConfiguredVolume(badVolumeID2)
-	// removePreConfiguredVolume(snappedVolumeID)
-	// removePreConfiguredVolume("72cee42500000003")
-	// removePreConfiguredVolume("456ca4fc00000009")
-
 	// Add in the requsted number of volumes
 	idTemplate := "111-11%d"
 	nameTemplate := "vol%d"
@@ -3484,13 +3425,13 @@ func (f *feature) iCallCreateStorageProtectionGroup() error {
 	// Must be repeatable.
 	clusterUID := f.clusterUID
 
-	if !stepHandlersErrors.EmptyParametersListError {
+	if inducedError.Error() != "EmptyParametersListError" {
 		parameters["replication.storage.dell.com/remoteSystem"] = arrayID2
 		parameters["replication.storage.dell.com/rpo"] = "60"
 		parameters["clusterUID"] = clusterUID
 	}
 
-	if stepHandlersErrors.BadRemoteSystem {
+	if inducedError.Error() == "BadRemoteSystem" {
 		parameters["replication.storage.dell.com/remoteSystem"] = "xxx"
 	}
 

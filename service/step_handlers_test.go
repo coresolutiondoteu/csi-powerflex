@@ -36,82 +36,62 @@ var (
 	sdcMappingsID string
 
 	stepHandlersErrors struct {
-		FindVolumeIDError                         bool
-		GetVolByIDError                           bool
-		GetStoragePoolsError                      bool
-		PodmonFindSdcError                        bool
-		PodmonVolumeStatisticsError               bool
-		PodmonNoNodeIDError                       bool
-		PodmonNoSystemError                       bool
-		PodmonNoVolumeNoNodeIDError               bool
-		PodmonControllerProbeError                bool
-		PodmonNodeProbeError                      bool
-		PodmonVolumeError                         bool
-		GetSystemSdcError                         bool
-		GetSdcInstancesError                      bool
-		MapSdcError                               bool
-		RemoveMappedSdcError                      bool
-		SDCLimitsError                            bool
-		SIOGatewayVolumeNotFoundError             bool
-		GetStatisticsError                        bool
-		CreateSnapshotError                       bool
-		RemoveVolumeError                         bool
-		VolumeInstancesError                      bool
-		BadVolIDError                             bool
-		NoCsiVolIDError                           bool
-		WrongVolIDError                           bool
-		WrongSystemError                          bool
-		NoEndpointError                           bool
-		NoUserError                               bool
-		NoPasswordError                           bool
-		NoSysNameError                            bool
-		NoAdminError                              bool
-		WrongSysNameError                         bool
-		NoVolumeIDError                           bool
-		SetVolumeSizeError                        bool
-		systemNameMatchingError                   bool
-		LegacyVolumeConflictError                 bool
-		VolumeIDTooShortError                     bool
-		EmptyEphemeralID                          bool
-		IncorrectEphemeralID                      bool
-		TooManyDashesVolIDError                   bool
-		CorrectFormatBadCsiVolID                  bool
-		EmptySysID                                bool
-		VolIDListEmptyError                       bool
-		CreateVGSNoNameError                      bool
-		CreateVGSNameTooLongError                 bool
-		CreateVGSLegacyVol                        bool
-		CreateVGSAcrossTwoArrays                  bool
-		CreateVGSBadTimeError                     bool
-		CreateSplitVGSError                       bool
-		BadVolIDJSON                              bool
-		BadMountPathError                         bool
-		NoMountPathError                          bool
-		NoVolIDError                              bool
-		NoVolIDSDCError                           bool
-		NoVolError                                bool
-		PeerMdmError                              bool
-		CreateVolumeError                         bool
-		BadRemoteSystemIDError                    bool
-		NoProtectionDomainError                   bool
-		GetReplicationConsistencyGroupsError      bool
-		ReplicationConsistencyGroupError          bool
-		ReplicationPairError                      bool
-		GetReplicationPairError                   bool
-		RemoteReplicationConsistencyGroupError    bool
-		RemoteRCGBadNameError                     bool
-		EmptyParametersListError                  bool
-		RemoveRCGError                            bool
-		NoDeleteReplicationPair                   bool
-		BadRemoteSystem                           bool
-		ExecuteActionError                        bool
-		StorageGroupAlreadyExists                 bool
-		StorageGroupAlreadyExistsUnretriavable    bool
-		ReplicationGroupAlreadyDeleted            bool
-		ReplicationPairAlreadyExists              bool
-		ReplicationPairAlreadyExistsUnretrievable bool
-		SnapshotCreationError                     bool
-		GetRCGByIdError                           bool
+		FindVolumeIDError             bool
+		GetVolByIDError               bool
+		GetStoragePoolsError          bool
+		PodmonFindSdcError            bool
+		PodmonVolumeStatisticsError   bool
+		PodmonNoNodeIDError           bool
+		PodmonNoSystemError           bool
+		PodmonNoVolumeNoNodeIDError   bool
+		PodmonControllerProbeError    bool
+		PodmonNodeProbeError          bool
+		PodmonVolumeError             bool
+		GetSystemSdcError             bool
+		GetSdcInstancesError          bool
+		MapSdcError                   bool
+		RemoveMappedSdcError          bool
+		SDCLimitsError                bool
+		SIOGatewayVolumeNotFoundError bool
+		GetStatisticsError            bool
+		CreateSnapshotError           bool
+		RemoveVolumeError             bool
+		VolumeInstancesError          bool
+		BadVolIDError                 bool
+		NoCsiVolIDError               bool
+		WrongVolIDError               bool
+		WrongSystemError              bool
+		NoEndpointError               bool
+		NoUserError                   bool
+		NoPasswordError               bool
+		NoSysNameError                bool
+		NoAdminError                  bool
+		WrongSysNameError             bool
+		NoVolumeIDError               bool
+		SetVolumeSizeError            bool
+		systemNameMatchingError       bool
+		LegacyVolumeConflictError     bool
+		VolumeIDTooShortError         bool
+		EmptyEphemeralID              bool
+		IncorrectEphemeralID          bool
+		TooManyDashesVolIDError       bool
+		CorrectFormatBadCsiVolID      bool
+		EmptySysID                    bool
+		VolIDListEmptyError           bool
+		CreateVGSNoNameError          bool
+		CreateVGSNameTooLongError     bool
+		CreateVGSLegacyVol            bool
+		CreateVGSAcrossTwoArrays      bool
+		CreateVGSBadTimeError         bool
+		CreateSplitVGSError           bool
+		BadVolIDJSON                  bool
+		BadMountPathError             bool
+		NoMountPathError              bool
+		NoVolIDError                  bool
+		NoVolIDSDCError               bool
+		NoVolError                    bool
+		PeerMdmError                  bool
+		CreateVolumeError             bool
 	}
 )
 
@@ -120,6 +100,14 @@ var (
 var scaleioRouter http.Handler
 var testControllerHasNoConnection bool
 var count int
+
+const (
+	remoteRCGID            = "d303184900000001"
+	unmarkedForReplication = "UnmarkedForReplication"
+	defaultVolumeSize      = "33554432"
+)
+
+var inducedError error
 
 // getFileHandler returns an http.Handler that
 func getHandler() http.Handler {
@@ -194,26 +182,6 @@ func getHandler() http.Handler {
 	stepHandlersErrors.NoVolError = false
 	stepHandlersErrors.PeerMdmError = false
 	stepHandlersErrors.CreateVolumeError = false
-	stepHandlersErrors.BadRemoteSystemIDError = false
-	stepHandlersErrors.NoProtectionDomainError = false
-	stepHandlersErrors.GetReplicationConsistencyGroupsError = false
-	stepHandlersErrors.ReplicationConsistencyGroupError = false
-	stepHandlersErrors.ReplicationPairError = false
-	stepHandlersErrors.GetReplicationPairError = false
-	stepHandlersErrors.EmptyParametersListError = false
-	stepHandlersErrors.RemoteReplicationConsistencyGroupError = false
-	stepHandlersErrors.RemoteRCGBadNameError = false
-	stepHandlersErrors.RemoveRCGError = false
-	stepHandlersErrors.NoDeleteReplicationPair = false
-	stepHandlersErrors.BadRemoteSystem = false
-	stepHandlersErrors.ExecuteActionError = false
-	stepHandlersErrors.StorageGroupAlreadyExists = false
-	stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable = false
-	stepHandlersErrors.ReplicationGroupAlreadyDeleted = false
-	stepHandlersErrors.ReplicationPairAlreadyExists = false
-	stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable = false
-	stepHandlersErrors.SnapshotCreationError = false
-	stepHandlersErrors.GetRCGByIdError = false
 	sdcMappings = sdcMappings[:0]
 	sdcMappingsID = ""
 	return handler
@@ -237,23 +205,6 @@ func getRouter() http.Handler {
 	scaleioRouter.HandleFunc("/api/Volume/relationship/Statistics", handleVolumeStatistics)
 	scaleioRouter.HandleFunc("{SdcGUID}/relationships/Sdc", handleSystemSdc)
 	return scaleioRouter
-}
-
-func addPreConfiguredVolume(id, name string) {
-	volumeIDToName[id] = name
-	volumeNameToID[name] = id
-	volumeIDToSizeInKB[id] = defaultVolumeSize
-	volumeIDToAncestorID[id] = ""
-	volumeIDToConsistencyGroupID[id] = ""
-	volumeIDToReplicationState[id] = unmarkedForReplication
-}
-
-func removePreConfiguredVolume(id string) {
-	name := volumeIDToName[id]
-	if name != "" {
-		delete(volumeIDToName, id)
-		delete(volumeNameToID, name)
-	}
 }
 
 // handle implements GET /api/types/StoragePool/instances
@@ -308,7 +259,7 @@ func handleSystemInstances(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "PodmonControllerProbeError", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
-	if stepHandlersErrors.BadRemoteSystemIDError {
+	if inducedError.Error() == "BadRemoteSystemIDError" {
 		returnJSONFile("features", "get_primary_system_instance.json", w, nil)
 		return
 	}
@@ -437,7 +388,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if stepHandlersErrors.SnapshotCreationError {
+	if inducedError.Error() == "SnapshotCreationError" {
 		writeError(w, "RCG snapshot not created", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
@@ -558,17 +509,14 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-const remoteRCGID = "d303184900000001"
-const unmarkedForReplication = "UnmarkedForReplication"
-const defaultVolumeSize = "33554432"
-
 func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		if stepHandlersErrors.ReplicationConsistencyGroupError {
+		if inducedError.Error() == "ReplicationConsistencyGroupError" {
 			writeError(w, "create rcg induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
+
 		req := types.ReplicationConsistencyGroupCreatePayload{}
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&req)
@@ -579,12 +527,9 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		for _, ctx := range systemArrays[r.Host].replicationConsistencyGroups {
 			if ctx["name"] == req.Name {
 				w.WriteHeader(http.StatusInternalServerError)
-				// duplicate rcg name response
 				log.Printf("request for rcg creation of duplicate name: %s\n", req.Name)
-				resp := new(types.Error)
-				resp.Message = "The Replication Consistency Group already exists"
-				resp.HTTPStatusCode = http.StatusInternalServerError
-				resp.ErrorCode = 6
+				resp := types.Error{Message: "The Replication Consistency Group already exists",
+					HTTPStatusCode: http.StatusInternalServerError, ErrorCode: 6}
 				encoder := json.NewEncoder(w)
 				err = encoder.Encode(resp)
 				if err != nil {
@@ -612,14 +557,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		array.replicationConsistencyGroups[resp.ID]["remoteMdmId"] = req.DestinationSystemId
 		array.replicationConsistencyGroups[resp.ID]["replicationDirection"] = "LocalToRemote"
 
-		// Add remote rcg.
-		for _, arr := range systemArrays {
-			if arr.ID == req.DestinationSystemId {
-				array = arr
-				break
-			}
-		}
-
+		array = array.replicationSystem
 		array.replicationConsistencyGroups[remoteRCGID] = make(map[string]string)
 		array.replicationConsistencyGroups[remoteRCGID]["name"] = "rem-" + req.Name
 		array.replicationConsistencyGroups[remoteRCGID]["id"] = remoteRCGID
@@ -634,7 +572,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
 
-		if stepHandlersErrors.StorageGroupAlreadyExists || stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable {
+		if inducedError.Error() == "StorageGroupAlreadyExists" || inducedError.Error() == "StorageGroupAlreadyExistsUnretriavable" {
 			writeError(w, "The Replication Consistency Group already exists", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -645,23 +583,24 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			log.Printf("error encoding json: %s\n", err.Error())
 		}
 	case http.MethodGet:
-		if stepHandlersErrors.GetReplicationConsistencyGroupsError {
+		if inducedError.Error() == "GetReplicationConsistencyGroupsError" {
 			writeError(w, "could not GET ReplicationConsistencyGroups", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
+
 		instances := make([]*types.ReplicationConsistencyGroup, 0)
-		rcgs := systemArrays[r.Host].replicationConsistencyGroups
-		for _, group := range rcgs {
-			if stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable {
+		for _, group := range systemArrays[r.Host].replicationConsistencyGroups {
+			if inducedError.Error() == "StorageGroupAlreadyExistsUnretriavable" {
 				continue
 			}
 
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = group["id"]
-			replacementMap["__NAME__"] = group["name"]
 
-			if stepHandlersErrors.RemoteRCGBadNameError {
+			if inducedError.Error() == "RemoteRCGBadNameError" {
 				replacementMap["__NAME__"] = "xxx"
+			} else {
+				replacementMap["__NAME__"] = group["name"]
 			}
 
 			replacementMap["__MODE__"] = replicationGroupConsistMode
@@ -669,15 +608,14 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			replacementMap["__RM_PROTECTION_DOMAIN__"] = group["remoteProtectionDomainId"]
 			replacementMap["__REP_DIR__"] = group["replicationDirection"]
 
-			var data []byte
-
 			if group["id"] == remoteRCGID {
-				if stepHandlersErrors.RemoteReplicationConsistencyGroupError {
+				if inducedError.Error() == "RemoteReplicationConsistencyGroupError" {
 					writeError(w, "could not GET Remote ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
 					return
 				}
 			}
 
+			var data []byte
 			data = returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
 
 			fmt.Printf("RCG data %s\n", string(data))
@@ -686,6 +624,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			if err != nil {
 				log.Printf("error unmarshalling json: %s\n", string(data))
 			}
+
 			instances = append(instances, rcg)
 		}
 
@@ -701,7 +640,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		if stepHandlersErrors.ReplicationPairError {
+		if inducedError.Error() == "ReplicationPairError" {
 			writeError(w, "POST ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -746,13 +685,7 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 		// set replicated on volumes.
 		array.volumes[req.SourceVolumeID]["volumeReplicationState"] = "Replicated"
 
-		for _, arr := range systemArrays {
-			if arr.ID == array.replicationConsistencyGroups[req.ReplicationConsistencyGroupID]["remoteMdmId"] {
-				array = arr
-				break
-			}
-		}
-
+		array = array.replicationSystem
 		array.replicationPairs[resp.ID] = make(map[string]string)
 		array.replicationPairs[resp.ID]["name"] = "rp-" + req.Name
 		array.replicationPairs[resp.ID]["id"] = resp.ID
@@ -765,11 +698,11 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToReplicationState[req.SourceVolumeID] = "Replicated"
 		volumeIDToReplicationState[req.DestinationVolumeID] = "Replicated"
 
-		if true {
+		if debug {
 			log.Printf("request name: %s id: %s sourceVolume %s\n", req.Name, resp.ID, req.SourceVolumeID)
 		}
 
-		if stepHandlersErrors.ReplicationPairAlreadyExists || stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable {
+		if inducedError.Error() == "ReplicationPairAlreadyExists" || inducedError.Error() == "ReplicationPairAlreadyExistsUnretrievable" {
 			writeError(w, "A Replication Pair for the specified local volume already exists", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -780,14 +713,14 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error encoding json: %s\n", err.Error())
 		}
 	case http.MethodGet:
-		if stepHandlersErrors.GetReplicationPairError {
+		if inducedError.Error() == "GetReplicationPairError" {
 			writeError(w, "GET ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
+
 		instances := make([]*types.ReplicationPair, 0)
-		pairs := systemArrays[r.Host].replicationPairs
-		for _, pair := range pairs {
-			if stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable {
+		for _, pair := range systemArrays[r.Host].replicationPairs {
+			if inducedError.Error() == "ReplicationPairAlreadyExistsUnretrievable" {
 				continue
 			}
 
@@ -890,15 +823,14 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		if stepHandlersErrors.CreateSnapshotError {
 			writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
 		}
+
 		req := types.SnapshotVolumesParam{}
 		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&req)
-		if err != nil {
+		if err := decoder.Decode(&req); err != nil {
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
-		for _, snapParam := range req.SnapshotDefs {
-			// For now, only a single snapshot ID is supported
 
+		for _, snapParam := range req.SnapshotDefs {
 			id := snapParam.VolumeID
 
 			cgValue := "f30216fb00000001"
@@ -965,7 +897,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("set volume name %s", req.NewName)
 		volumeIDToName[id] = req.NewName
 	case "removeReplicationConsistencyGroup":
-		if stepHandlersErrors.RemoveRCGError {
+		if inducedError.Error() == "RemoveRCGError" {
 			writeError(w, "inducedError", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -974,7 +906,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		delete(groups, id)
 
 	case "removeReplicationPair":
-		if stepHandlersErrors.NoDeleteReplicationPair {
+		if inducedError.Error() == "NoDeleteReplicationPair" {
 			writeError(w, "pairs exist", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -984,14 +916,13 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("volumeIDToReplicationState %+v\n", volumeIDToReplicationState)
 
 	case "createReplicationConsistencyGroupSnapshots":
-		if stepHandlersErrors.ExecuteActionError {
+		if inducedError.Error() == "ExecuteActionError" {
 			writeError(w, "could not execute RCG action", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
-		// volumeIDToAncestorID[id] = "null"
+
 		snapshotGroupID := uuid.New().String()
 		resp := types.CreateReplicationConsistencyGroupSnapshotResp{}
-		// snapshotID := hex.EncodeToString([]byte(snapshotName))
 		resp.SnapshotGroupID = snapshotGroupID
 
 		remoteConsistencyGroup := systemArrays[r.Host].replicationConsistencyGroups[id]["remoteId"]
@@ -1027,7 +958,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	case "resumeReplicationConsistencyGroup":
 		fallthrough
 	case "pauseReplicationConsistencyGroup":
-		if stepHandlersErrors.ExecuteActionError {
+		if inducedError.Error() == "ExecuteActionError" {
 			writeError(w, "could not execute RCG action", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -1094,7 +1025,7 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "Unsupported relationship from type", http.StatusRequestTimeout, codes.Internal)
 		}
 	case "ProtectionDomain":
-		if stepHandlersErrors.NoProtectionDomainError {
+		if inducedError.Error() == "NoProtectionDomainError" {
 			writeError(w, "induced error NoProtectionDomainError", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
@@ -1105,15 +1036,14 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 
 		returnJSONFile("features", "get_protection_domains.json", w, nil)
 	case "ReplicationPair":
-		if stepHandlersErrors.GetReplicationPairError {
+		if inducedError.Error() == "GetReplicationPairError" {
 			writeError(w, "GET ReplicationPair induced error", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
 
 		instances := make([]*types.ReplicationPair, 0)
 
-		pairs := systemArrays[r.Host].replicationPairs
-		for _, pair := range pairs {
+		for _, pair := range systemArrays[r.Host].replicationPairs {
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = pair["id"]
 			replacementMap["__NAME__"] = pair["name"]
@@ -1162,7 +1092,7 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if stepHandlersErrors.ReplicationGroupAlreadyDeleted {
+	if inducedError.Error() == "ReplicationGroupAlreadyDeleted" {
 		writeError(w, "The Replication Consistency Group was not found", http.StatusRequestTimeout, codes.Internal)
 		return
 	}
@@ -1198,7 +1128,7 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "volume not found: "+id, http.StatusNotFound, codes.NotFound)
 		}
 	case "ReplicationConsistencyGroup":
-		if stepHandlersErrors.GetRCGByIdError {
+		if inducedError.Error() == "GetRCGByIdError" {
 			writeError(w, "could not GET RCG by ID", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
