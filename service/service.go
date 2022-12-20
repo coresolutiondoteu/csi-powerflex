@@ -662,25 +662,12 @@ func (s *service) removeVolumeFromReplicationPair(systemID string, volumeID stri
 		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
 	}
 
-	// Gets a list of all replication pairs.
-	pairs, err := adminClient.GetReplicationPairs("")
+	pair, err := s.findReplicationPairByVolId(systemID, volumeID)
 	if err != nil {
 		return nil, err
 	}
 
-	var replicationPairId string
-	for _, pair := range pairs {
-		if volumeID == pair.LocalVolumeID {
-			replicationPairId = pair.ID
-			break
-		}
-	}
-
-	if replicationPairId == "" {
-		return nil, fmt.Errorf("replication pair for volume ID: %s, not found", volumeID)
-	}
-
-	resp, err := adminClient.RemoveReplicationPair(replicationPairId, true)
+	resp, err := adminClient.RemoveReplicationPair(pair.ID, true)
 	if err != nil {
 		return nil, err
 	}

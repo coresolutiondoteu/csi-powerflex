@@ -95,6 +95,7 @@ var setupGetSystemIDtoFail bool
 type feature struct {
 	nGoRoutines                           int
 	server                                *httptest.Server
+	server2                               *httptest.Server
 	service                               *service
 	adminClient                           *goscaleio.Client
 	system                                *goscaleio.System
@@ -252,14 +253,16 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	// Get the httptest mock handler. Only set
 	// a new server if there isn't one already.
 	handler := getHandler()
+	// handler2 := getHandler()
 	if handler != nil {
 		if f.server == nil {
 			f.server = httptest.NewServer(handler)
+			f.server2 = httptest.NewServer(handler)
 		}
 		if f.service.opts.arrays != nil {
 			f.service.opts.arrays[arrayID].Endpoint = f.server.URL
 			if f.service.opts.arrays[arrayID2] != nil {
-				f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+				f.service.opts.arrays[arrayID2].Endpoint = f.server2.URL
 			}
 		}
 		// addPreConfiguredVolume(sdcVolume1, "sdcVolume1")
@@ -275,6 +278,20 @@ func (f *feature) aVxFlexOSServiceWithTimeoutMilliseconds(millis int) error {
 	} else {
 		f.server = nil
 	}
+
+	// Used to contain all contents of the systemArray.
+	systemArrays = make(map[string]*systemArray)
+	addr := f.server.Listener.Addr().String()
+	addr2 := f.server2.Listener.Addr().String()
+
+	systemArrays[addr] = &systemArray{ID: arrayID}
+	systemArrays[addr2] = &systemArray{ID: arrayID2}
+
+	systemArrays[addr].Init()
+	systemArrays[addr2].Init()
+
+	systemArrays[addr].Link(systemArrays[addr2])
+
 	f.clusterUID = uuid.New().String()
 	f.checkGoRoutines("end aVxFlexOSService")
 	return nil
@@ -3580,7 +3597,7 @@ func (f *feature) iUseConfig(filename string) error {
 	if f.service.opts.arrays != nil {
 		f.service.opts.arrays[arrayID].Endpoint = f.server.URL
 		if f.service.opts.arrays[arrayID2] != nil {
-			f.service.opts.arrays[arrayID2].Endpoint = f.server.URL
+			f.service.opts.arrays[arrayID2].Endpoint = f.server2.URL
 		}
 	}
 
@@ -3863,6 +3880,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {
 			f.server.Close()
+			f.server2.Close()
 		}
 		return ctx, nil
 	})

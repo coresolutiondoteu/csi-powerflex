@@ -65,7 +65,7 @@ Scenario Outline: Test CreateStorageProtectionGroup
   | "sourcevol"              | "ReplicationPairError"                      | "POST ReplicationPair induced error"                | "false"  |
   | "sourcevol"              | "GetReplicationPairError"                   | "GET ReplicationPair induced error"		             | "false"  |
   | "sourcevol"              | "PeerMdmError"                              | "PeerMdmError"                                      | "false"  |
-  | "sourcevol"              | "RemoteReplicationConsistencyGroupError"    | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
+  # | "sourcevol"              | "RemoteReplicationConsistencyGroupError"    | "could not GET Remote ReplicationConsistencyGroup"  | "false"  |
   | "sourcevol"              | "BadRemoteSystem"                           | "couldn't getSystem (remote)"                       | "false"  |
   | "sourcevol"              | "FindVolumeIDError"                         | "can't find volume replicated-sourcevol by name"    | "false"  |
   | "sourcevol"              | "StorageGroupAlreadyExists"                 | "none"                                              | "true"   | 
@@ -106,6 +106,23 @@ Scenario Outline: Test multiple CreateStorageProtectionGroup calls
   | name1     | name2     | group name | remote cluster id | rpo  | rpo2   | errormsg | valid    |
   | "1srcVol" | "2srcVol" | ""         | "cluster-k211"    | "60" | "60"   | "none"   | "true"   | 
   | "1srcVol" | "2srcVol" | ""         | "cluster-k211"    | "60" | "120"  | "none"   | "true"   | 
+
+@replication
+Scenario Outline: Test ControllerExpandVolume on replication pair
+  Given a VxFlexOS service
+  And I use config "replication-config"
+  When I call CreateVolume <name>
+  And I call CreateRemoteVolume
+  And I call CreateStorageProtectionGroup
+  And I induce error <error>
+  Then I call ControllerExpandVolume set to <GB>
+  Then the error contains <errormsg>
+  And a <valid> remote volume is returned
+  Examples:
+  | name      | GB | error                                       | errormsg                              | valid    |
+  | "1srcVol" | 64 | "none"                                      | "none"                                | "true"   |
+  | "1srcVol" | 64 | "GetReplicationPairError"                   | "GET ReplicationPair induced error"   | "false"  |
+  | "1srcVol" | 64 | "GetRCGByIdError"                           | "could not GET RCG by ID"             | "false"  |
 
 @replication
 Scenario Outline: Test DeleteStorageProtectionGroup up to volume

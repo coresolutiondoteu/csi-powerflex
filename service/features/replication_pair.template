@@ -7,7 +7,7 @@
         "localVolumeId": "__SOURCE_VOLUME__",
         "remoteVolumeId": "__DESTINATION_VOLUME__",
         "remoteVolumeName": "replication-target",
-        "replicationConsistencyGroupId": "d303184900000001",
+        "replicationConsistencyGroupId": "__RP_GROUP__",
         "copyType": "Identical",
         "lifetimeState": "Normal",
         "peerSystemName": "",

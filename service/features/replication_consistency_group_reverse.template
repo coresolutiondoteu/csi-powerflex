@@ -6,7 +6,7 @@
         "remoteProtectionDomainId": "1dee83c600000000",
         "peerMdmId": "d02aebc400000000",
         "remoteId": "__ID__",
-        "remoteMdmId": "4c33e14b19f0380f",
+        "remoteMdmId": "14dbbf5617523654",
         "replicationDirection": "RemoteToLocal",
         "currConsistMode": "PartiallyConsistent",
         "freezeState": "Unfrozen",

@@ -137,14 +137,6 @@ func getHandler() http.Handler {
 	volumeIDToConsistencyGroupID = make(map[string]string)
 	volumeIDToSizeInKB = make(map[string]string)
 	volumeIDToReplicationState = make(map[string]string)
-	rcgIDToName = make(map[string]string)
-	rcgNameToID = make(map[string]string)
-	replicationConsistencyGroups = make(map[string]map[string]string)
-	replicationPairIDToName = make(map[string]string)
-	replicationPairNameToID = make(map[string]string)
-	replicationPairIDToSourceVolume = make(map[string]string)
-	replicationPairIDToDestinationVolume = make(map[string]string)
-	rcgIDtoDestinationVolumes = make(map[string][]string)
 	debug = false
 	stepHandlersErrors.FindVolumeIDError = false
 	stepHandlersErrors.GetVolByIDError = false
@@ -401,33 +393,33 @@ var volumeIDToSizeInKB map[string]string
 // Map of volume ID to Replication State
 var volumeIDToReplicationState map[string]string
 
-// Map of Replication Consistency Group ID to name
-var rcgIDToName map[string]string
-
-// Map of Replication Consistency Group Name to ID
-var rcgNameToID map[string]string
-
-// Map of ReplicationPair ID to Name
-var replicationPairIDToName map[string]string
-
-// Map of ReplicatPair Name to ID
-var replicationPairNameToID map[string]string
-
-// Map of ReplicationPair ID to Source Volume
-var replicationPairIDToSourceVolume map[string]string
-
-// Map of ReplicationPair ID to Destination Volume
-var replicationPairIDToDestinationVolume map[string]string
-
 // Replication group mode to replace for.
 var replicationGroupConsistMode string
 
 // Replication group state to replace for.
 var replicationGroupState string
 
-var rcgIDtoDestinationVolumes map[string][]string
+// Possible rework, every systemID should have a instances similar to an array.
+type systemArray struct {
+	ID                           string
+	replicationSystem            *systemArray
+	volumes                      map[string]map[string]string
+	replicationConsistencyGroups map[string]map[string]string
+	replicationPairs             map[string]map[string]string
+}
 
-var replicationConsistencyGroups map[string]map[string]string
+func (s *systemArray) Init() {
+	s.volumes = make(map[string]map[string]string)
+	s.replicationConsistencyGroups = make(map[string]map[string]string)
+	s.replicationPairs = make(map[string]map[string]string)
+}
+
+func (s *systemArray) Link(remoteSystem *systemArray) {
+	s.replicationSystem = remoteSystem
+	remoteSystem.replicationSystem = s
+}
+
+var systemArrays map[string]*systemArray
 
 // handleVolumeInstances handles listing all volumes or creating a volume
 func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
@@ -438,16 +430,8 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToConsistencyGroupID = make(map[string]string)
 		volumeIDToSizeInKB = make(map[string]string)
 		volumeIDToReplicationState = make(map[string]string)
-		rcgIDToName = make(map[string]string)
-		rcgNameToID = make(map[string]string)
-		replicationConsistencyGroups = make(map[string]map[string]string)
-		replicationPairIDToName = make(map[string]string)
-		replicationPairNameToID = make(map[string]string)
-		replicationPairIDToSourceVolume = make(map[string]string)
-		replicationPairIDToDestinationVolume = make(map[string]string)
-		rcgIDtoDestinationVolumes = make(map[string][]string)
-
 	}
+
 	if stepHandlersErrors.VolumeInstancesError {
 		writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
 		return
@@ -473,6 +457,10 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
 		fmt.Printf("POST to create volume name %s\n", req.Name)
+
+		host := r.Host
+		fmt.Printf("Host Endpoint %s\n", host)
+
 		if volumeNameToID[req.Name] != "" {
 			w.WriteHeader(http.StatusInternalServerError)
 			// duplicate volume name response
@@ -498,10 +486,21 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 		volumeIDToConsistencyGroupID[resp.ID] = "null"
 		volumeIDToSizeInKB[resp.ID] = req.VolumeSizeInKb
 		volumeIDToReplicationState[resp.ID] = unmarkedForReplication
+
+		systemArrays[host].volumes[resp.ID] = make(map[string]string)
+		systemArrays[host].volumes[resp.ID]["name"] = req.Name
+		systemArrays[host].volumes[resp.ID]["id"] = resp.ID
+		systemArrays[host].volumes[resp.ID]["sizeInKb"] = req.VolumeSizeInKb
+		systemArrays[host].volumes[resp.ID]["volumeReplicationState"] = unmarkedForReplication
+		systemArrays[host].volumes[resp.ID]["consistencyGroupID"] = "null"
+		systemArrays[host].volumes[resp.ID]["ancestorVolumeId"] = "null"
+
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
 		}
+
 		encoder := json.NewEncoder(w)
+
 		err = encoder.Encode(resp)
 		if err != nil {
 			log.Printf("error encoding json: %s\n", err.Error())
@@ -511,6 +510,27 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	// Read all the Volumes
 	case http.MethodGet:
 		instances := make([]*types.Volume, 0)
+		volumes := systemArrays[r.Host].volumes
+
+		for id, vol := range volumes {
+			replacementMap := make(map[string]string)
+			replacementMap["__ID__"] = vol["id"]
+			replacementMap["__NAME__"] = vol["name"]
+			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
+			replacementMap["__ANCESTOR_ID__"] = vol["ancestorVolumeId"]
+			replacementMap["__CONSISTENCY_GROUP_ID__"] = vol["consistencyGroupID"]
+			replacementMap["__SIZE_IN_KB__"] = vol["sizeInKb"]
+			replacementMap["__VOLUME_REPLICATION_STATE__"] = vol["volumeReplicationState"]
+			data := returnJSONFile("features", "volume.json.template", nil, replacementMap)
+			vol := new(types.Volume)
+			err := json.Unmarshal(data, vol)
+			if err != nil {
+				log.Printf("error unmarshalling json: %s\n", string(data))
+			}
+			instances = append(instances, vol)
+		}
+
+		// Add none-created volumes (old)
 		for id, name := range volumeIDToName {
 			name = id
 			replacementMap := make(map[string]string)
@@ -529,6 +549,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 			}
 			instances = append(instances, vol)
 		}
+
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(instances)
 		if err != nil {
@@ -537,7 +558,7 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-const remoteRCGID = "d02aebc400000000"
+const remoteRCGID = "d303184900000001"
 const unmarkedForReplication = "UnmarkedForReplication"
 const defaultVolumeSize = "33554432"
 
@@ -555,36 +576,59 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
 		fmt.Printf("POST to ReplicationConsistencyGroup %s\n", req.Name)
-		if rcgNameToID[req.Name] != "" {
-			w.WriteHeader(http.StatusInternalServerError)
-			// duplicate rcg name response
-			log.Printf("request for rcg creation of duplicate name: %s\n", req.Name)
-			resp := new(types.Error)
-			resp.Message = "The Replication Consistency Group already exists"
-			resp.HTTPStatusCode = http.StatusInternalServerError
-			resp.ErrorCode = 6
-			encoder := json.NewEncoder(w)
-			err = encoder.Encode(resp)
-			if err != nil {
-				log.Printf("error encoding json: %s\n", err.Error())
+		for _, ctx := range systemArrays[r.Host].replicationConsistencyGroups {
+			if ctx["name"] == req.Name {
+				w.WriteHeader(http.StatusInternalServerError)
+				// duplicate rcg name response
+				log.Printf("request for rcg creation of duplicate name: %s\n", req.Name)
+				resp := new(types.Error)
+				resp.Message = "The Replication Consistency Group already exists"
+				resp.HTTPStatusCode = http.StatusInternalServerError
+				resp.ErrorCode = 6
+				encoder := json.NewEncoder(w)
+				err = encoder.Encode(resp)
+				if err != nil {
+					log.Printf("error encoding json: %s\n", err.Error())
+				}
+				return
 			}
-			return
 		}
-		// good response
+
 		resp := new(types.ReplicationConsistencyGroup)
 		resp.ID = hex.EncodeToString([]byte(req.Name))
 		fmt.Printf("Generated rcg ID %s Name %s\n", resp.ID, req.Name)
-		rcgIDToName[resp.ID] = req.Name
-		rcgNameToID[req.Name] = resp.ID
-		// add in remote RCG, unless error
-		rcgIDToName[remoteRCGID] = "rem-" + req.Name
-		rcgNameToID["rem-"+req.Name] = req.Name
 
-		replicationConsistencyGroups[resp.ID] = make(map[string]string)
-		replicationConsistencyGroups[resp.ID]["Name"] = req.Name
-		replicationConsistencyGroups[resp.ID]["ID"] = resp.ID
-		replicationConsistencyGroups[resp.ID]["ProtectionGroup"] = req.ProtectionDomainId
-		replicationConsistencyGroups[resp.ID]["RemoteProtectionGroup"] = req.RemoteProtectionDomainId
+		var array *systemArray
+
+		// Add local rcg.
+		array = systemArrays[r.Host]
+		array.replicationConsistencyGroups[resp.ID] = make(map[string]string)
+		array.replicationConsistencyGroups[resp.ID]["name"] = req.Name
+		array.replicationConsistencyGroups[resp.ID]["id"] = resp.ID
+		array.replicationConsistencyGroups[resp.ID]["remoteId"] = remoteRCGID
+		array.replicationConsistencyGroups[resp.ID]["protectionDomainId"] = req.ProtectionDomainId
+		array.replicationConsistencyGroups[resp.ID]["remoteProtectionDomainId"] = req.RemoteProtectionDomainId
+		array.replicationConsistencyGroups[resp.ID]["rpoInSeconds"] = req.RpoInSeconds
+		array.replicationConsistencyGroups[resp.ID]["remoteMdmId"] = req.DestinationSystemId
+		array.replicationConsistencyGroups[resp.ID]["replicationDirection"] = "LocalToRemote"
+
+		// Add remote rcg.
+		for _, arr := range systemArrays {
+			if arr.ID == req.DestinationSystemId {
+				array = arr
+				break
+			}
+		}
+
+		array.replicationConsistencyGroups[remoteRCGID] = make(map[string]string)
+		array.replicationConsistencyGroups[remoteRCGID]["name"] = "rem-" + req.Name
+		array.replicationConsistencyGroups[remoteRCGID]["id"] = remoteRCGID
+		array.replicationConsistencyGroups[remoteRCGID]["remoteId"] = resp.ID
+		array.replicationConsistencyGroups[remoteRCGID]["protectionDomainId"] = req.RemoteProtectionDomainId
+		array.replicationConsistencyGroups[remoteRCGID]["remoteProtectionDomainId"] = req.ProtectionDomainId
+		array.replicationConsistencyGroups[remoteRCGID]["rpoInSeconds"] = req.RpoInSeconds
+		array.replicationConsistencyGroups[remoteRCGID]["remoteMdmId"] = array.ID
+		array.replicationConsistencyGroups[remoteRCGID]["replicationDirection"] = "RemoteToLocal"
 
 		if debug {
 			log.Printf("request name: %s id: %s\n", req.Name, resp.ID)
@@ -606,30 +650,36 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			return
 		}
 		instances := make([]*types.ReplicationConsistencyGroup, 0)
-		for id, name := range rcgIDToName {
+		rcgs := systemArrays[r.Host].replicationConsistencyGroups
+		for _, group := range rcgs {
 			if stepHandlersErrors.StorageGroupAlreadyExistsUnretriavable {
 				continue
 			}
 
 			replacementMap := make(map[string]string)
-			replacementMap["__ID__"] = id
-			replacementMap["__NAME__"] = name
+			replacementMap["__ID__"] = group["id"]
+			replacementMap["__NAME__"] = group["name"]
+
 			if stepHandlersErrors.RemoteRCGBadNameError {
 				replacementMap["__NAME__"] = "xxx"
 			}
+
 			replacementMap["__MODE__"] = replicationGroupConsistMode
-			replacementMap["__PROTECTION_DOMAIN__"] = replicationConsistencyGroups[id]["ProtectionGroup"]
-			replacementMap["__RM_PROTECTION_DOMAIN__"] = replicationConsistencyGroups[id]["RemoteProtectionGroup"]
+			replacementMap["__PROTECTION_DOMAIN__"] = group["protectionDomainId"]
+			replacementMap["__RM_PROTECTION_DOMAIN__"] = group["remoteProtectionDomainId"]
+			replacementMap["__REP_DIR__"] = group["replicationDirection"]
+
 			var data []byte
-			if id == remoteRCGID {
+
+			if group["id"] == remoteRCGID {
 				if stepHandlersErrors.RemoteReplicationConsistencyGroupError {
 					writeError(w, "could not GET Remote ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
 					return
 				}
-				data = returnJSONFile("features", "replication_consistency_group_reverse.template", nil, replacementMap)
-			} else {
-				data = returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
 			}
+
+			data = returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
+
 			fmt.Printf("RCG data %s\n", string(data))
 			rcg := new(types.ReplicationConsistencyGroup)
 			err := json.Unmarshal(data, rcg)
@@ -638,6 +688,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			}
 			instances = append(instances, rcg)
 		}
+
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(instances)
 		if err != nil {
@@ -661,34 +712,58 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error decoding json: %s\n", err.Error())
 		}
 		fmt.Printf("POST to ReplicationPair %s Request %+v\n", req.Name, req)
-		if replicationPairNameToID[req.Name] != "" {
-			w.WriteHeader(http.StatusInternalServerError)
-			// duplicate replication pair name response
-			log.Printf("request for replication pair creation of duplicate name: %s\n", req.Name)
-			resp := new(types.Error)
-			resp.Message = "Replication Pair name already in use"
-			resp.HTTPStatusCode = http.StatusInternalServerError
-			resp.ErrorCode = 6
-			encoder := json.NewEncoder(w)
-			err = encoder.Encode(resp)
-			if err != nil {
-				log.Printf("error encoding json: %s\n", err.Error())
+		for _, ctx := range systemArrays[r.Host].replicationPairs {
+			if ctx["name"] == req.Name {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Printf("request for replication pair creation of duplicate name: %s\n", req.Name)
+
+				resp := new(types.Error)
+				resp.Message = "Replication Pair name already in use"
+				resp.HTTPStatusCode = http.StatusInternalServerError
+				resp.ErrorCode = 6
+				encoder := json.NewEncoder(w)
+				err = encoder.Encode(resp)
+				if err != nil {
+					log.Printf("error encoding json: %s\n", err.Error())
+				}
+				return
 			}
-			return
 		}
-		// good response
+
 		resp := new(types.ReplicationPair)
 		resp.ID = hex.EncodeToString([]byte(req.Name))
 		fmt.Printf("Generated replicationPair ID %s Name %s Struct %+v\n", resp.ID, req.Name, req)
-		replicationPairIDToName[resp.ID] = req.Name
-		replicationPairIDToSourceVolume[resp.ID] = req.SourceVolumeID
-		replicationPairIDToDestinationVolume[resp.ID] = req.DestinationVolumeID
-		replicationPairNameToID[req.Name] = resp.ID
+
+		var array *systemArray
+		array = systemArrays[r.Host]
+		array.replicationPairs[resp.ID] = make(map[string]string)
+		array.replicationPairs[resp.ID]["name"] = req.Name
+		array.replicationPairs[resp.ID]["id"] = resp.ID
+		array.replicationPairs[resp.ID]["localVolumeId"] = req.SourceVolumeID
+		array.replicationPairs[resp.ID]["remoteVolumeId"] = req.DestinationVolumeID
+		array.replicationPairs[resp.ID]["replicationConsistencyGroupId"] = req.ReplicationConsistencyGroupID
+
+		// set replicated on volumes.
+		array.volumes[req.SourceVolumeID]["volumeReplicationState"] = "Replicated"
+
+		for _, arr := range systemArrays {
+			if arr.ID == array.replicationConsistencyGroups[req.ReplicationConsistencyGroupID]["remoteMdmId"] {
+				array = arr
+				break
+			}
+		}
+
+		array.replicationPairs[resp.ID] = make(map[string]string)
+		array.replicationPairs[resp.ID]["name"] = "rp-" + req.Name
+		array.replicationPairs[resp.ID]["id"] = resp.ID
+		array.replicationPairs[resp.ID]["localVolumeId"] = req.DestinationVolumeID
+		array.replicationPairs[resp.ID]["remoteVolumeId"] = req.SourceVolumeID
+		array.replicationPairs[resp.ID]["replicationConsistencyGroupId"] = array.replicationConsistencyGroups[remoteRCGID]["id"]
+
+		array.volumes[req.DestinationVolumeID]["volumeReplicationState"] = "Replicated"
 
 		volumeIDToReplicationState[req.SourceVolumeID] = "Replicated"
 		volumeIDToReplicationState[req.DestinationVolumeID] = "Replicated"
-
-		rcgIDtoDestinationVolumes[req.ReplicationConsistencyGroupID] = append(rcgIDtoDestinationVolumes[req.ReplicationConsistencyGroupID], req.DestinationVolumeID)
 
 		if true {
 			log.Printf("request name: %s id: %s sourceVolume %s\n", req.Name, resp.ID, req.SourceVolumeID)
@@ -710,27 +785,33 @@ func handleReplicationPairInstances(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		instances := make([]*types.ReplicationPair, 0)
-		for id, name := range replicationPairIDToName {
+		pairs := systemArrays[r.Host].replicationPairs
+		for _, pair := range pairs {
 			if stepHandlersErrors.ReplicationPairAlreadyExistsUnretrievable {
 				continue
 			}
 
 			replacementMap := make(map[string]string)
-			replacementMap["__ID__"] = id
-			replacementMap["__NAME__"] = name
-			replacementMap["__SOURCE_VOLUME__"] = replicationPairIDToSourceVolume[id]
-			replacementMap["__DESTINATION_VOLUME__"] = replicationPairIDToDestinationVolume[id]
+			replacementMap["__ID__"] = pair["id"]
+			replacementMap["__NAME__"] = pair["name"]
+			replacementMap["__SOURCE_VOLUME__"] = pair["localVolumeId"]
+			replacementMap["__DESTINATION_VOLUME__"] = pair["remoteVolumeId"]
+			replacementMap["__RP_GROUP__"] = pair["replicationConsistencyGroupId"]
+
 			log.Printf("replicatPair replacementMap %v\n", replacementMap)
 			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
+
 			log.Printf("replication-pair-data %s\n", string(data))
 			pair := new(types.ReplicationPair)
 			err := json.Unmarshal(data, pair)
 			if err != nil {
 				log.Printf("error unmarshalling json: %s\n", string(data))
 			}
+
 			log.Printf("replication-pair +%v", pair)
 			instances = append(instances, pair)
 		}
+
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(instances)
 		if err != nil {
@@ -888,27 +969,20 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "inducedError", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
-		name := rcgIDToName[id]
-		rcgIDToName[id] = ""
-		if name != "" {
-			rcgNameToID[name] = ""
-		}
+
+		groups := systemArrays[r.Host].replicationConsistencyGroups
+		delete(groups, id)
+
 	case "removeReplicationPair":
 		if stepHandlersErrors.NoDeleteReplicationPair {
 			writeError(w, "pairs exist", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
-		sourceVolume := replicationPairIDToSourceVolume[id]
-		destVolume := replicationPairIDToDestinationVolume[id]
-		fmt.Printf("sourceVolume %s\n", sourceVolume)
+		pairs := systemArrays[r.Host].replicationPairs
+		delete(pairs, id)
+
 		fmt.Printf("volumeIDToReplicationState %+v\n", volumeIDToReplicationState)
-		volumeIDToReplicationState[sourceVolume] = unmarkedForReplication
-		volumeIDToReplicationState[destVolume] = unmarkedForReplication
-		name := replicationPairIDToName[id]
-		delete(replicationPairIDToName, id)
-		delete(replicationPairIDToSourceVolume, id)
-		delete(replicationPairIDToDestinationVolume, id)
-		delete(replicationPairNameToID, name)
+
 	case "createReplicationConsistencyGroupSnapshots":
 		if stepHandlersErrors.ExecuteActionError {
 			writeError(w, "could not execute RCG action", http.StatusRequestTimeout, codes.Internal)
@@ -920,18 +994,20 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		// snapshotID := hex.EncodeToString([]byte(snapshotName))
 		resp.SnapshotGroupID = snapshotGroupID
 
-		for key, val := range rcgIDtoDestinationVolumes {
-			fmt.Printf("RCG ID %s, Vols %+v\n", key, val)
+		remoteConsistencyGroup := systemArrays[r.Host].replicationConsistencyGroups[id]["remoteId"]
+		remoteSystem := systemArrays[r.Host].replicationSystem
 
-			for _, vol := range val {
-				volName := uuid.New().String()
-				volumeIDToName[volName] = volName
-				volumeNameToID[volName] = volName
-				volumeIDToAncestorID[volName] = vol
-				volumeIDToConsistencyGroupID[volName] = snapshotGroupID
-				volumeIDToSizeInKB[volName] = volumeIDToSizeInKB[vol]
-				volumeIDToReplicationState[volName] = unmarkedForReplication
-
+		for _, pair := range remoteSystem.replicationPairs {
+			if pair["replicationConsistencyGroupId"] == remoteConsistencyGroup {
+				volId := uuid.New().String()
+				volName := "snapshot-" + pair["localVolumeId"]
+				remoteSystem.volumes[volId] = make(map[string]string)
+				remoteSystem.volumes[volId]["name"] = volName
+				remoteSystem.volumes[volId]["id"] = volId
+				remoteSystem.volumes[volId]["sizeInKb"] = remoteSystem.volumes[pair["localVolumeId"]]["sizeInKb"]
+				remoteSystem.volumes[volId]["volumeReplicationState"] = unmarkedForReplication
+				remoteSystem.volumes[volId]["consistencyGroupID"] = snapshotGroupID
+				remoteSystem.volumes[volId]["ancestorVolumeId"] = pair["localVolumeId"]
 			}
 		}
 
@@ -1035,12 +1111,16 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 		}
 
 		instances := make([]*types.ReplicationPair, 0)
-		for id, name := range replicationPairIDToName {
+
+		pairs := systemArrays[r.Host].replicationPairs
+		for _, pair := range pairs {
 			replacementMap := make(map[string]string)
-			replacementMap["__ID__"] = id
-			replacementMap["__NAME__"] = name
-			replacementMap["__SOURCE_VOLUME__"] = replicationPairIDToSourceVolume[id]
-			replacementMap["__DESTINATION_VOLUME__"] = replicationPairIDToDestinationVolume[id]
+			replacementMap["__ID__"] = pair["id"]
+			replacementMap["__NAME__"] = pair["name"]
+			replacementMap["__SOURCE_VOLUME__"] = pair["localVolumeId"]
+			replacementMap["__DESTINATION_VOLUME__"] = pair["remoteVolumeId"]
+			replacementMap["__RP_GROUP__"] = pair["replicationConsistencyGroupId"]
+
 			data := returnJSONFile("features", "replication_pair.template", nil, replacementMap)
 			pair := new(types.ReplicationPair)
 			err := json.Unmarshal(data, pair)
@@ -1050,6 +1130,7 @@ func handleRelationships(w http.ResponseWriter, r *http.Request) {
 			log.Printf("pair +%v", pair)
 			instances = append(instances, pair)
 		}
+
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(instances)
 		if err != nil {
@@ -1122,10 +1203,15 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		group := systemArrays[r.Host].replicationConsistencyGroups[id]
+
 		replacementMap := make(map[string]string)
-		replacementMap["__ID__"] = id
-		replacementMap["__NAME__"] = rcgIDToName[id]
+		replacementMap["__ID__"] = group["id"]
+		replacementMap["__NAME__"] = group["name"]
 		replacementMap["__MODE__"] = replicationGroupConsistMode
+		replacementMap["__PROTECTION_DOMAIN__"] = group["protectionDomainId"]
+		replacementMap["__RM_PROTECTION_DOMAIN__"] = group["remoteProtectionDomainId"]
+		replacementMap["__REP_DIR__"] = group["replicationDirection"]
 
 		if replicationGroupState == "Normal" {
 			replacementMap["__STATE__"] = "Ok"
