@@ -1156,8 +1156,7 @@ func (f *feature) iInduceError(errtype string) error {
 		f.service.systems[arrayID2] = nil
 		stepHandlersErrors.PodmonControllerProbeError = true
 	default:
-		fmt.Println("Error drop off, make sure you included the error...")
-		// return fmt.Errorf("Don't know how to induce error %q", errtype)
+		fmt.Println("Ensure that the error is handled in the handlers section.")
 	}
 	return nil
 }

@@ -483,6 +483,10 @@ func handleVolumeInstances(w http.ResponseWriter, r *http.Request) {
 
 		// Add none-created volumes (old)
 		for id, name := range volumeIDToName {
+			if _, ok := volumes[id]; ok {
+				continue
+			}
+
 			name = id
 			replacementMap := make(map[string]string)
 			replacementMap["__ID__"] = id
@@ -608,15 +612,7 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 			replacementMap["__RM_PROTECTION_DOMAIN__"] = group["remoteProtectionDomainId"]
 			replacementMap["__REP_DIR__"] = group["replicationDirection"]
 
-			if group["id"] == remoteRCGID {
-				if inducedError.Error() == "RemoteReplicationConsistencyGroupError" {
-					writeError(w, "could not GET Remote ReplicationConsistencyGroup", http.StatusRequestTimeout, codes.Internal)
-					return
-				}
-			}
-
-			var data []byte
-			data = returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
+			data := returnJSONFile("features", "replication_consistency_group.template", nil, replacementMap)
 
 			fmt.Printf("RCG data %s\n", string(data))
 			rcg := new(types.ReplicationConsistencyGroup)
@@ -859,6 +855,15 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			volumeIDToConsistencyGroupID[id] = cgValue
 			volumeIDToSizeInKB[id] = defaultVolumeSize
 			volumeIDToReplicationState[id] = unmarkedForReplication
+
+			vols := systemArrays[r.Host].volumes
+			vols[id] = make(map[string]string)
+			vols[id]["name"] = snapParam.SnapshotName
+			vols[id]["id"] = id
+			vols[id]["sizeInKb"] = defaultVolumeSize
+			vols[id]["volumeReplicationState"] = unmarkedForReplication
+			vols[id]["consistencyGroupID"] = cgValue
+			vols[id]["ancestorVolumeId"] = snapParam.VolumeID
 		}
 
 		if stepHandlersErrors.WrongVolIDError {
@@ -869,16 +874,22 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		if stepHandlersErrors.RemoveVolumeError {
 			writeError(w, "inducedError", http.StatusRequestTimeout, codes.Internal)
 		}
-		name := volumeIDToName[id]
-		volumeIDToName[id] = ""
-		volumeIDToAncestorID[id] = ""
-		volumeIDToConsistencyGroupID[id] = ""
-		volumeIDToSizeInKB[id] = ""
-		volumeIDToSizeInKB[id] = defaultVolumeSize
-		volumeIDToReplicationState[id] = ""
-		if name != "" {
-			volumeNameToID[name] = ""
+
+		if name, ok := volumeIDToName[id]; ok {
+			volumeIDToName[id] = ""
+			volumeIDToAncestorID[id] = ""
+			volumeIDToConsistencyGroupID[id] = ""
+			volumeIDToSizeInKB[id] = ""
+			volumeIDToSizeInKB[id] = defaultVolumeSize
+			volumeIDToReplicationState[id] = ""
+			if name != "" {
+				volumeNameToID[name] = ""
+			}
 		}
+
+		volumes := systemArrays[r.Host].volumes
+		delete(volumes, id)
+
 	case "setVolumeSize":
 		if stepHandlersErrors.SetVolumeSizeError {
 			writeError(w, "induced error", http.StatusRequestTimeout, codes.Internal)
@@ -1113,15 +1124,27 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 				volumeIDToSizeInKB[id] = defaultVolumeSize
 				volumeIDToReplicationState[id] = unmarkedForReplication
 			}
-			log.Printf("Get id %s for %s\n", id, objType)
 			replacementMap := make(map[string]string)
-			replacementMap["__ID__"] = id
-			replacementMap["__NAME__"] = volumeIDToName[id]
-			replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
-			replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
-			replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
-			replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
-			replacementMap["__VOLUME_REPLICATION_STATE__"] = volumeIDToReplicationState[id]
+			vol := systemArrays[r.Host].volumes[id]
+			log.Printf("Get id %s for %s\n", id, objType)
+			if vol != nil {
+				replacementMap["__ID__"] = vol["id"]
+				replacementMap["__NAME__"] = vol["name"]
+				replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
+				replacementMap["__ANCESTOR_ID__"] = vol["ancestorVolumeId"]
+				replacementMap["__CONSISTENCY_GROUP_ID__"] = vol["consistencyGroupID"]
+				replacementMap["__SIZE_IN_KB__"] = vol["sizeInKb"]
+				replacementMap["__VOLUME_REPLICATION_STATE__"] = vol["volumeReplicationState"]
+			} else {
+				replacementMap["__ID__"] = id
+				replacementMap["__NAME__"] = volumeIDToName[id]
+				replacementMap["__MAPPED_SDC_INFO__"] = getSdcMappings(id)
+				replacementMap["__ANCESTOR_ID__"] = volumeIDToAncestorID[id]
+				replacementMap["__CONSISTENCY_GROUP_ID__"] = volumeIDToConsistencyGroupID[id]
+				replacementMap["__SIZE_IN_KB__"] = volumeIDToSizeInKB[id]
+				replacementMap["__VOLUME_REPLICATION_STATE__"] = volumeIDToReplicationState[id]
+			}
+
 			returnJSONFile("features", "volume.json.template", w, replacementMap)
 		} else {
 			log.Printf("Did not find id %s for %s\n", id, objType)
@@ -1188,10 +1211,21 @@ func handleQueryVolumeIDByKey(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("error decoding json: %s\n", err.Error())
 	}
-	if volumeNameToID[req.Name] != "" {
+
+	found := false
+	for _, vol := range systemArrays[r.Host].volumes {
+		var id string
+		if vol["name"] == req.Name {
+			id = vol["id"]
+		} else if volumeNameToID[req.Name] != "" {
+			id = volumeNameToID[req.Name]
+		} else {
+			continue
+		}
+
 		resp := new(types.VolumeResp)
-		resp.ID = volumeNameToID[req.Name]
-		log.Printf("found volume %s id %s\n", req.Name, volumeNameToID[req.Name])
+		resp.ID = id
+		log.Printf("found volume %s id %s\n", req.Name, id)
 		encoder := json.NewEncoder(w)
 		if stepHandlersErrors.BadVolIDJSON {
 			err = encoder.Encode("thisWill://causeUnmarshalErr")
@@ -1201,7 +1235,12 @@ func handleQueryVolumeIDByKey(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("error encoding json: %s\n", err.Error())
 		}
-	} else {
+		found = true
+		break
+
+	}
+
+	if !found {
 		log.Printf("did not find volume %s\n", req.Name)
 		volumeNameToID[req.Name] = ""
 		writeError(w, fmt.Sprintf("Volume not found %s", req.Name), http.StatusNotFound, codes.NotFound)
