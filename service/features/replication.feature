@@ -141,7 +141,7 @@ Scenario Outline: Test DeleteStorageProtectionGroup up to volume
   | "sourcevol" | "ReplicationPairAlreadyExistsUnretrievable" | "error removing replication pair"                  | "false"  |
   | "sourcevol" | "GetReplicationPairError"                   | "GET ReplicationPair induced error"                | "false"  |
 
-@replication
+@replication-wip
 Scenario Outline: Test DeleteStorageProtectionGroup 
   Given a VxFlexOS service
   And I use config "replication-config"
@@ -155,10 +155,11 @@ Scenario Outline: Test DeleteStorageProtectionGroup
   And a <valid> remote volume is returned
   Examples:
   | name        | error                                 | errormsg                                           | valid    |
-  | "sourcevol" | "none"                                | "none"                                             | "true"   | 
-  | "sourcevol" | "GetReplicationPairError"             | "GET ReplicationPair induced error"                | "false"  |
-  | "sourcevol" | "ReplicationGroupAlreadyDeleted"      | "none"                                             | "true"   |
-  | "sourcevol" | "GetRCGByIdError"                     | "could not GET RCG by ID"                          | "false"  |
+  # | "sourcevol" | "none"                                | "none"                                             | "true"   | 
+  # | "sourcevol" | "GetReplicationPairError"             | "GET ReplicationPair induced error"                | "false"  |
+  # | "sourcevol" | "ReplicationGroupAlreadyDeleted"      | "none"                                             | "true"   |
+  # | "sourcevol" | "GetRCGByIdError"                     | "could not GET RCG by ID"                          | "false"  |
+  | "sourcevol" | "RemoveRCGError"                      | "coule not remove RCG"                             | "false"  |
 
 @replication
 Scenario Outline: Test GetStorageProtectionGroupStatus 

@@ -35,6 +35,7 @@ import (
 	volumeGroupSnapshot "github.com/dell/dell-csi-extensions/volumeGroupSnapshot"
 	"github.com/dell/gocsi"
 	csictx "github.com/dell/gocsi/context"
+	"github.com/dell/goscaleio"
 	sio "github.com/dell/goscaleio"
 	siotypes "github.com/dell/goscaleio/types/v1"
 	"github.com/fsnotify/fsnotify"
@@ -662,12 +663,15 @@ func (s *service) removeVolumeFromReplicationPair(systemID string, volumeID stri
 		return nil, fmt.Errorf("can't find adminClient by id %s", systemID)
 	}
 
-	pair, err := s.findReplicationPairByVolId(systemID, volumeID)
+	repPair, err := s.findReplicationPairByVolId(systemID, volumeID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := adminClient.RemoveReplicationPair(pair.ID, true)
+	pair := goscaleio.NewReplicationPair(adminClient)
+	pair.ReplicaitonPair = repPair
+
+	resp, err := pair.RemoveReplicationPair(true)
 	if err != nil {
 		return nil, err
 	}
@@ -682,7 +686,7 @@ func (s *service) findReplicationPairByVolId(systemID, volumeID string) (*siotyp
 	}
 
 	// Gets a list of all replication pairs.
-	pairs, err := adminClient.GetReplicationPairs("")
+	pairs, err := adminClient.GetAllReplicationPairs()
 	if err != nil {
 		return nil, err
 	}
@@ -716,7 +720,7 @@ func (s *service) expandReplicationPair(ctx context.Context, req *csi.Controller
 		return nil
 	}
 
-	req.VolumeId = group.RemoteMdmId + "-" + pair.RemoteVolumeID
+	req.VolumeId = group.RemoteMdmID + "-" + pair.RemoteVolumeID
 
 	resp, err := s.ControllerExpandVolume(ctx, req)
 	if err != nil {

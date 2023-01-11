@@ -555,10 +555,10 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		array.replicationConsistencyGroups[resp.ID]["name"] = req.Name
 		array.replicationConsistencyGroups[resp.ID]["id"] = resp.ID
 		array.replicationConsistencyGroups[resp.ID]["remoteId"] = remoteRCGID
-		array.replicationConsistencyGroups[resp.ID]["protectionDomainId"] = req.ProtectionDomainId
-		array.replicationConsistencyGroups[resp.ID]["remoteProtectionDomainId"] = req.RemoteProtectionDomainId
+		array.replicationConsistencyGroups[resp.ID]["protectionDomainId"] = req.ProtectionDomainID
+		array.replicationConsistencyGroups[resp.ID]["remoteProtectionDomainId"] = req.RemoteProtectionDomainID
 		array.replicationConsistencyGroups[resp.ID]["rpoInSeconds"] = req.RpoInSeconds
-		array.replicationConsistencyGroups[resp.ID]["remoteMdmId"] = req.DestinationSystemId
+		array.replicationConsistencyGroups[resp.ID]["remoteMdmId"] = req.DestinationSystemID
 		array.replicationConsistencyGroups[resp.ID]["replicationDirection"] = "LocalToRemote"
 
 		array = array.replicationSystem
@@ -566,8 +566,8 @@ func handleReplicationConsistencyGroupInstances(w http.ResponseWriter, r *http.R
 		array.replicationConsistencyGroups[remoteRCGID]["name"] = "rem-" + req.Name
 		array.replicationConsistencyGroups[remoteRCGID]["id"] = remoteRCGID
 		array.replicationConsistencyGroups[remoteRCGID]["remoteId"] = resp.ID
-		array.replicationConsistencyGroups[remoteRCGID]["protectionDomainId"] = req.RemoteProtectionDomainId
-		array.replicationConsistencyGroups[remoteRCGID]["remoteProtectionDomainId"] = req.ProtectionDomainId
+		array.replicationConsistencyGroups[remoteRCGID]["protectionDomainId"] = req.RemoteProtectionDomainID
+		array.replicationConsistencyGroups[remoteRCGID]["remoteProtectionDomainId"] = req.ProtectionDomainID
 		array.replicationConsistencyGroups[remoteRCGID]["rpoInSeconds"] = req.RpoInSeconds
 		array.replicationConsistencyGroups[remoteRCGID]["remoteMdmId"] = array.ID
 		array.replicationConsistencyGroups[remoteRCGID]["replicationDirection"] = "RemoteToLocal"
@@ -909,7 +909,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		volumeIDToName[id] = req.NewName
 	case "removeReplicationConsistencyGroup":
 		if inducedError.Error() == "RemoveRCGError" {
-			writeError(w, "inducedError", http.StatusRequestTimeout, codes.Internal)
+			writeError(w, "coule not remove RCG", http.StatusRequestTimeout, codes.Internal)
 			return
 		}
 
