@@ -14,7 +14,7 @@ require (
 	github.com/dell/dell-csi-extensions/volumeGroupSnapshot v1.2.2-0.20221019160525-ed5b353790e7
 	github.com/dell/gocsi v1.6.0
 	github.com/dell/gofsutil v1.11.0
-	github.com/dell/goscaleio v1.9.0
+	github.com/dell/goscaleio v1.9.1-0.20230119051213-c17109752c1f
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
@@ -86,5 +86,3 @@ require (
 	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 )
-
-replace github.com/dell/goscaleio => /root/rajshree/goscaleio
