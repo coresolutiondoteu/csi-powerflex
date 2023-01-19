@@ -3,11 +3,11 @@
 
 # "version" is used to verify the values file matches driver version
 # Not recommend to change
-version: v2.5.0
+version: vmain-latest
 
 images:
   # "driver" defines the container image, used for the driver container.
-  driverRepository: dellemc
+  driverRepository: amaas-eos-mw1.cec.lab.emc.com:5036
 
   # "powerflexSdc" defines the SDC image for init container.
   powerflexSdc: dellemc/sdc:3.6.0.6
@@ -74,7 +74,7 @@ allowRWOMultiPodAccess: "false"
 # Allowed values:
 #   ReadWriteOnceWithFSType: supports volume ownership and permissions change only if the fsType is defined
 #   and the volume's accessModes contains ReadWriteOnce.
-#   File: kubernetes may use fsGroup to change permissions and ownership of the volume 
+#   File: kubernetes may use fsGroup to change permissions and ownership of the volume
 #   to match user requested fsGroup in the pod's security policy regardless of fstype or access mode.
 #   None: volumes will be mounted with no modifications.
 fsGroupPolicy: File
@@ -121,7 +121,7 @@ controller:
     #   false: disable volume snapshot feature(do not install resizer sidecar)
     # Default value: None
     enabled: true
-  
+
   #"controller.nodeSelector" defines what nodes would be selected for pods of controller deployment
   # Leave as blank to use all nodes
   # Allowed values: map of key-value pairs
@@ -135,12 +135,12 @@ controller:
   # Leave as blank to install controller on worker nodes
   # Default value: None
   tolerations:
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint 
-  # - key: "node-role.kubernetes.io/master"   
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
+  # - key: "node-role.kubernetes.io/master"
   #   operator: "Exists"
   #   effect: "NoSchedule"
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint 
-  # - key: "node-role.kubernetes.io/control-plane"   
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  # - key: "node-role.kubernetes.io/control-plane"
   #   operator: "Exists"
   #   effect: "NoSchedule"
 
@@ -168,14 +168,14 @@ node:
   # Default value: None
   tolerations:
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
-  # - key: "node-role.kubernetes.io/master"   
+  # - key: "node-role.kubernetes.io/master"
   #   operator: "Exists"
   #   effect: "NoSchedule"
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint 
-  # - key: "node-role.kubernetes.io/control-plane"   
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  # - key: "node-role.kubernetes.io/control-plane"
   #   operator: "Exists"
   #   effect: "NoSchedule"
-  # Uncomment if CSM for Resiliency and CSI Driver pods monitor is enabled 
+  # Uncomment if CSM for Resiliency and CSI Driver pods monitor is enabled
   # - key: "offline.vxflexos.storage.dell.com"
   #   operator: "Exists"
   #   effect: "NoSchedule"
@@ -194,6 +194,9 @@ node:
   # - key: "isilon.podmon.storage.dell.com"
   #   operator: "Exists"
   #   effect: "NoSchedule"
+  renameSDC:
+    enabled: true
+    prefix: "sdc-test"
 # monitoring pod details
 # These options control the running of the monitoring container
 # This container gather diagnostic information in case of failure
@@ -267,6 +270,6 @@ authorization:
   # skipCertificateValidation: certificate validation of the csm-authorization server
   # Allowed Values:
   #   "true" - TLS certificate verification will be skipped
-  #   "false" - TLS certificate will be verified 
-  # Default value: "true" 
+  #   "false" - TLS certificate will be verified
+  # Default value: "true"
   skipCertificateValidation: true

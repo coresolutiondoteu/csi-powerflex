@@ -7,10 +7,10 @@ DEFAULT_BASEIMAGE="registry.access.redhat.com/ubi8/ubi-minimal"
 # digest for 8.6-994
 DEFAULT_DIGEST="sha256:c5ffdf5938d73283cec018f2adf59f0ed9f8c376d93e415a27b16c3c6aad6f45"
 DEFAULT_GOVERSION="1.19.2"
-DEFAULT_REGISTRY="sample_registry"
+DEFAULT_REGISTRY="amaas-eos-mw1.cec.lab.emc.com:5036"
 DEFAULT_IMAGENAME="csi-vxflexos"
 DEFAULT_BUILDSTAGE="final"
-DEFAULT_IMAGETAG=""
+DEFAULT_IMAGETAG="vrename-sdc"
 
 # set the BASEIMAGE if needed
 ifeq ($(BASEIMAGE),)
@@ -38,7 +38,7 @@ export IMAGENAME="$(DEFAULT_IMAGENAME)"
 endif
 
 #set the IMAGETAG if needed
-ifneq ($(DEFAULT_IMAGETAG), "") 
+ifneq ($(DEFAULT_IMAGETAG), "")
 export IMAGETAG="$(DEFAULT_IMAGETAG)"
 endif
 
@@ -75,6 +75,6 @@ overrides-help:
 	@echo "              Stages can be found by looking at the Dockerfile"
 	@echo "              Current setting is: $(BUILDSTAGE)"
 	@echo
-        
-	
+
+
 

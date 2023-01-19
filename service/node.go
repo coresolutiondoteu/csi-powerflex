@@ -394,6 +394,19 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		}
 	}
 
+	// rename SDC operation
+	if s.opts.IsSdcRenameEnabled {
+		fmt.Printf("SDC Rename bool..........:%v\n", s.opts.IsSdcRenameEnabled)
+	}
+	if len(s.opts.SdcPrefix) > 0 {
+		fmt.Printf("SDC prefix value..........:%s\n", s.opts.SdcPrefix)
+	}
+	hostName, ok := os.LookupEnv("HOSTNAME")
+	if !ok {
+		fmt.Printf("%s not set\n", "HOSTNAME")
+	}
+	fmt.Printf("HOSTNAME..........:%s\n", hostName)
+
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)
 
