@@ -395,17 +395,42 @@ func (s *service) nodeProbe(ctx context.Context) error {
 	}
 
 	// rename SDC operation
-	if s.opts.IsSdcRenameEnabled {
-		fmt.Printf("SDC Rename bool..........:%v\n", s.opts.IsSdcRenameEnabled)
-	}
-	if len(s.opts.SdcPrefix) > 0 {
-		fmt.Printf("SDC prefix value..........:%s\n", s.opts.SdcPrefix)
-	}
+	//if s.opts.IsSdcRenameEnabled {
+	//	fmt.Printf("SDC Rename bool..........:%v\n", s.opts.IsSdcRenameEnabled)
+	//}
+	//if len(s.opts.SdcPrefix) > 0 {
+	//	fmt.Printf("SDC prefix value..........:%s\n", s.opts.SdcPrefix)
+	//}
+	fmt.Printf("SDC Rename bool..........:%v\n", s.opts.IsSdcRenameEnabled)
+	fmt.Printf("SDC prefix value..........:%s\n", s.opts.SdcPrefix)
 	hostName, ok := os.LookupEnv("HOSTNAME")
 	if !ok {
 		fmt.Printf("%s not set\n", "HOSTNAME")
 	}
 	fmt.Printf("HOSTNAME..........:%s\n", hostName)
+
+	for _, systemID := range connectedSystemID {
+		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
+
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		}
+		sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		}
+		Log.Infof("SDC approval status: %v", sdc.Sdc.SdcApproved)
+		if sdc.Sdc.Name == hostName {
+			Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
+		} else {
+			Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)
+			err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
+			if err != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
+			}
+		}
+
+	}
 
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)

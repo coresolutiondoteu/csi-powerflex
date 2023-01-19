@@ -84,8 +84,8 @@ var KubeConfig string
 // K8sClientset is the client to query k8s
 var K8sClientset kubernetes.Interface
 
-//Log controlls the logger
-//give default value, will be overwritten by configmap
+// Log controlls the logger
+// give default value, will be overwritten by configmap
 var Log = logrus.New()
 
 // ArrayConnectionData contains data required to connect to array
@@ -267,7 +267,7 @@ func (s *service) logCsiNodeTopologyKeys() error {
 
 }
 
-//New returns a handle to service
+// New returns a handle to service
 func New() Service {
 	return &service{
 		storagePoolIDToName:     map[string]string{},
@@ -372,6 +372,7 @@ func (s *service) BeforeServe(
 		}
 	}
 	if healthMonitor, ok := csictx.LookupEnv(ctx, EnvIsHealthMonitorEnabled); ok {
+		fmt.Printf("healthMonitor value service.go..........:%s\n", healthMonitor)
 		if healthMonitor == "true" {
 			opts.IsHealthMonitorEnabled = true
 		}
@@ -379,6 +380,7 @@ func (s *service) BeforeServe(
 		opts.IsHealthMonitorEnabled = false
 	}
 	if renameSDC, ok := csictx.LookupEnv(ctx, EnvIsSDCRenameEnabled); ok {
+		fmt.Printf("renameSDC value service.go..........:%s\n", renameSDC)
 		if renameSDC == "true" {
 			opts.IsSdcRenameEnabled = true
 		}
@@ -386,6 +388,7 @@ func (s *service) BeforeServe(
 		opts.IsSdcRenameEnabled = false
 	}
 	if sdcPrefix, ok := csictx.LookupEnv(ctx, EnvSDCPrefix); ok {
+		fmt.Printf("sdcPrefix value service.go..........:%s\n", sdcPrefix)
 		opts.SdcPrefix = sdcPrefix
 	}
 	if s.privDir == "" {
@@ -740,9 +743,9 @@ func (s *service) getSystemIDFromCsiVolumeID(csiVolID string) string {
 	return ""
 }
 
-//this function updates volumePrefixToSystems, a map of volume ID prefixes -> system IDs
-//this is needed for checkSystemVolumes, a function that verifies that any legacy vol ID
-//is found on the default system, only
+// this function updates volumePrefixToSystems, a map of volume ID prefixes -> system IDs
+// this is needed for checkSystemVolumes, a function that verifies that any legacy vol ID
+// is found on the default system, only
 func (s *service) UpdateVolumePrefixToSystemsMap(systemID string) error {
 	//get one vol from system
 	vols, _, err := s.listVolumes(systemID, 0, 1, true, false, "", "")
