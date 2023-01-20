@@ -152,7 +152,7 @@ node:
     #   true: enable checking of health condition of CSI volumes
     #   false: disable checking of health condition of CSI volumes
     # Default value: None
-    enabled: true
+    enabled: false
 
   # "node.nodeSelector" defines what nodes would be selected for pods of node daemonset
   # Leave as blank to use all nodes
