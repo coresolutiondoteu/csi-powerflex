@@ -3,7 +3,7 @@
 
 # "version" is used to verify the values file matches driver version
 # Not recommend to change
-version: vmain-latest
+version: vrename-sdc
 
 images:
   # "driver" defines the container image, used for the driver container.
@@ -44,7 +44,7 @@ defaultFsType: ext4
 #  IfNotPresent: Only pull the image if it does not already exist on the node.
 #  Never: Never pull the image.
 # Default value: None
-imagePullPolicy: IfNotPresent
+imagePullPolicy: Always
 
 # "enablesnapshotcgdelete"- a boolean that, when enabled, will delete all snapshots in a consistency group
 # everytime a snap in the group is deleted
@@ -152,7 +152,7 @@ node:
     #   true: enable checking of health condition of CSI volumes
     #   false: disable checking of health condition of CSI volumes
     # Default value: None
-    enabled: false
+    enabled: true
 
   # "node.nodeSelector" defines what nodes would be selected for pods of node daemonset
   # Leave as blank to use all nodes

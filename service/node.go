@@ -395,17 +395,27 @@ func (s *service) nodeProbe(ctx context.Context) error {
 	}
 
 	// rename SDC operation
+	/*
+		if bool=false and no prefix given then use the default name for SDC.
+		if bool=true and prefix given then set the prefix value for sdc name.
+		if bool=false and prefix not given then set worker node name as default sdc name.
+	*/
 	if s.opts.IsSdcRenameEnabled {
-		fmt.Printf("SDC Rename bool..........:%v\n", s.opts.IsSdcRenameEnabled)
+		fmt.Println("Rename SDC enabled..........")
+		fmt.Printf("IsSdcRenameEnabled..........:%v\n", s.opts.IsSdcRenameEnabled)
+		if len(s.opts.SdcPrefix) > 0 {
+			fmt.Printf("SdcPrefix..........:%s\n", s.opts.SdcPrefix)
+		}
+	} else {
+		fmt.Println("Rename SDC disabled..........")
+		hostName, ok := os.LookupEnv("HOSTNAME")
+		if !ok {
+			fmt.Printf("%s not set\n", "HOSTNAME")
+		}
+		fmt.Printf("HOSTNAME..........:%s\n", hostName)
 	}
-	if len(s.opts.SdcPrefix) > 0 {
-		fmt.Printf("SDC prefix value..........:%s\n", s.opts.SdcPrefix)
-	}
-	hostName, ok := os.LookupEnv("HOSTNAME")
-	if !ok {
-		fmt.Printf("%s not set\n", "HOSTNAME")
-	}
-	fmt.Printf("HOSTNAME..........:%s\n", hostName)
+
+
 
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)
