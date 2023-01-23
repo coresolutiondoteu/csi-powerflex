@@ -396,23 +396,42 @@ func (s *service) nodeProbe(ctx context.Context) error {
 
 	// rename SDC operation
 	/*
-		if bool=false and no prefix given then use the default name for SDC.
 		if bool=true and prefix given then set the prefix value for sdc name.
-		if bool=false and prefix not given then set worker node name as default sdc name.
+		if bool=true and prefix not given then set worker node name as default sdc name.
+		if bool=false and no prefix given then use the default name for SDC.
 	*/
 	if s.opts.IsSdcRenameEnabled {
-		fmt.Println("Rename SDC enabled..........")
-		fmt.Printf("IsSdcRenameEnabled..........:%v\n", s.opts.IsSdcRenameEnabled)
+		fmt.Println("Rename SDC enabled.........., IsSdcRenameEnabled..........:%v\n", s.opts.IsSdcRenameEnabled)
 		if len(s.opts.SdcPrefix) > 0 {
-			fmt.Printf("SdcPrefix..........:%s\n", s.opts.SdcPrefix)
+			fmt.Printf("SdcPrefix to be used..........:%s\n", s.opts.SdcPrefix)
+			for _, systemID := range connectedSystemID {
+				fmt.Printf("systemID..........:%s\n", systemID)
+				sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
+				if err != nil {
+					return status.Errorf(codes.FailedPrecondition, "%s", err)
+				}
+				fmt.Printf("sdcID..........:%s\n", sdcID)
+
+				sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+				if err != nil {
+					return status.Errorf(codes.FailedPrecondition, "%s", err)
+				}
+				fmt.Printf("sdc.Sdc.Name..........:%s\n", sdc.Sdc.Name)
+
+				Log.Infof("SDC approval status: %v", sdc.Sdc.SdcApproved)
+			}
+		} else {
+			fmt.Println("no SdcPrefix..........")
+			fmt.Println("set worker node name as default sdc name..........")
+			hostName, ok := os.LookupEnv("HOSTNAME")
+			if !ok {
+				fmt.Printf("%s not set\n", "HOSTNAME")
+			}
+			fmt.Printf("HOSTNAME..........:%s\n", hostName)
 		}
 	} else {
-		fmt.Println("Rename SDC disabled..........")
-		hostName, ok := os.LookupEnv("HOSTNAME")
-		if !ok {
-			fmt.Printf("%s not set\n", "HOSTNAME")
-		}
-		fmt.Printf("HOSTNAME..........:%s\n", hostName)
+		fmt.Println("Rename SDC disabled, use default SDC ID as name..........")
+		fmt.Printf("SdcGUID..........:%s\n", s.opts.SdcGUID)
 	}
 
 
