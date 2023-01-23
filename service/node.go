@@ -400,67 +400,79 @@ func (s *service) nodeProbe(ctx context.Context) error {
 		if bool=true and prefix not given then set worker node name as default sdc name.
 		if bool=false and no prefix given then use the default name for SDC.
 	*/
+	// fetch hostname
 	hostName, ok := os.LookupEnv("HOSTNAME")
 	if !ok {
-		fmt.Printf("%s not set\n", "HOSTNAME")
+		Log.Infof("%s not set\n", "HOSTNAME")
 	}
-	fmt.Printf("HOSTNAME..........:%s\n", hostName)
-	if s.opts.IsSdcRenameEnabled {
-		fmt.Println("Rename SDC enabled.........., IsSdcRenameEnabled..........:%v\n", s.opts.IsSdcRenameEnabled)
-		if len(s.opts.SdcPrefix) > 0 {
-			fmt.Printf("SdcPrefix to be used..........:%s\n", s.opts.SdcPrefix)
-			for _, systemID := range connectedSystemID {
-				fmt.Printf("systemID..........:%s\n", systemID)
-				sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
-				if err != nil {
-					return status.Errorf(codes.FailedPrecondition, "%s", err)
-				}
-				fmt.Printf("sdcID..........:%s\n", sdcID)
+	Log.Infof("HOSTNAME..........:%s\n", hostName)
 
-				sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
-				if err != nil {
-					return status.Errorf(codes.FailedPrecondition, "%s", err)
-				}
-				fmt.Printf("sdc.Sdc.Name..........:%s\n", sdc.Sdc.Name)
+	// fetch SDC details
+	for _, systemID := range connectedSystemID {
+		Log.Infof("systemID..........:%s\n", systemID)
+		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		}
+		Log.Infof("sdcID..........:%s\n", sdcID)
+
+		sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "%s", err)
+		}
+		Log.Infof("sdc.Sdc.Name..........:%s\n", sdc.Sdc.Name)
+		Log.Infof("SDC approval status: %v", sdc.Sdc.SdcApproved)
+
+		// case1: if bool=true and prefix given then set the prefix value for sdc name.
+		if s.opts.IsSdcRenameEnabled {
+			Log.Infof("Rename SDC enabled..........IsSdcRenameEnabled:..........%v\n", s.opts.IsSdcRenameEnabled)
+			if len(s.opts.SdcPrefix) > 0 {
+				Log.Infof("SdcPrefix to be used..........:%s\n", s.opts.SdcPrefix)
 				if sdc.Sdc.Name == hostName {
 					Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
 				} else {
-					Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", s.opts.SdcPrefix, s.opts.SdcGUID, systemID)
+					Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", s.opts.SdcPrefix, s.opts.SdcGUID,
+						systemID)
+					Log.Infof("case 1 to be executed...........................")
 					err = s.adminClients[systemID].RenameSdc(sdcID, s.opts.SdcPrefix)
 					if err != nil {
 						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 					}
+					Log.Infof("case 1 executed...........................")
+				}
+			} else {
+				// case2: if bool=true and prefix not given then set worker node name (hostname) as default sdc name.
+				Log.Infof("no SdcPrefix..........")
+				Log.Infof("set worker node name as default sdc name..........")
+				if sdc.Sdc.Name == hostName {
+					Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
+				} else {
+					Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)
+					Log.Infof("case 2 to be executed...........................")
+					err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
+					if err != nil {
+						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
+					}
+					Log.Infof("case 2 executed...........................")
 				}
 			}
 		} else {
-			fmt.Println("no SdcPrefix..........")
-			fmt.Println("set worker node name as default sdc name..........")
+			// case3: if bool=false and no prefix given then use the default name for SDC.
+			Log.Infof("Rename SDC disabled, use default SDC ID as name..........")
+			Log.Infof("SdcGUID..........:%s\n", s.opts.SdcGUID)
 			if sdc.Sdc.Name == hostName {
 				Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
 			} else {
-				Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", hostName, s.opts.SdcGUID, systemID)
-				err = s.adminClients[systemID].RenameSdc(sdcID, hostName)
+				Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", sdcID, s.opts.SdcGUID, systemID)
+				Log.Infof("case 3 to be executed...........................")
+				err = s.adminClients[systemID].RenameSdc(sdcID, sdcID)
 				if err != nil {
 					return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 				}
-			}
-
-		}
-	} else {
-		fmt.Println("Rename SDC disabled, use default SDC ID as name..........")
-		fmt.Printf("SdcGUID..........:%s\n", s.opts.SdcGUID)
-		if sdc.Sdc.Name == hostName {
-			Log.Infof("SDC is already named: %s.", sdc.Sdc.Name)
-		} else {
-			Log.Infof("Assigning name: %s to SDC with GUID %s on system %s", sdcID, s.opts.SdcGUID, systemID)
-			err = s.adminClients[systemID].RenameSdc(sdcID, sdcID)
-			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
+				Log.Infof("case 2 executed...........................")
 			}
 		}
 	}
-
-
 
 	// get all the system names and IDs.
 	s.getSystemName(ctx, connectedSystemID)
