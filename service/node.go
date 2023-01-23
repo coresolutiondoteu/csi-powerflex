@@ -405,7 +405,6 @@ func (s *service) nodeProbe(ctx context.Context) error {
 	if !ok {
 		Log.Infof("%s not set\n", "HOSTNAME")
 	}
-	Log.Infof("HOSTNAME..........:%s\n", hostName)
 
 	// fetch SDC details
 	for _, systemID := range connectedSystemID {
