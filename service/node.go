@@ -395,6 +395,25 @@ func (s *service) nodeProbe(ctx context.Context) error {
 	}
 
 	// rename SDC
+	err = s.renameSDC(s.opts)
+	if err != nil {
+		return err
+	}
+
+	// get all the system names and IDs.
+	s.getSystemName(ctx, connectedSystemID)
+
+	// make sure privDir is pre-created
+	if _, err := mkdir(s.privDir); err != nil {
+		return status.Errorf(codes.Internal,
+			"plugin private dir: %s creation error: %s",
+			s.privDir, err.Error())
+	}
+
+	return nil
+}
+
+func (s *service) renameSDC(opts Opts) error {
 	/*
 		if IsSdcRenameEnabled=true and prefix given then set the prefix+worker_node_name for sdc name.
 		if IsSdcRenameEnabled=true and prefix not given then set worker_node_name for sdc name.
@@ -408,11 +427,11 @@ func (s *service) nodeProbe(ctx context.Context) error {
 
 	// fetch SDC details
 	for _, systemID := range connectedSystemID {
-		sdcID, err := s.getSDCID(s.opts.SdcGUID, systemID)
+		sdcID, err := s.getSDCID(opts.SdcGUID, systemID)
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "%s", err)
 		}
-		sdc, err := s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+		sdc, err := s.systems[systemID].FindSdc("SdcGUID", opts.SdcGUID)
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "%s", err)
 		}
@@ -420,8 +439,8 @@ func (s *service) nodeProbe(ctx context.Context) error {
 
 		// case1: if IsSdcRenameEnabled=true and prefix given then set the prefix+worker_node_name for sdc name.
 		if s.opts.IsSdcRenameEnabled {
-			if len(s.opts.SdcPrefix) > 0 {
-				newName := s.opts.SdcPrefix + "-" + hostName
+			if len(opts.SdcPrefix) > 0 {
+				newName := opts.SdcPrefix + "-" + hostName
 				if sdc.Sdc.Name == newName {
 					Log.Infof("SDC is already named: %s.", newName)
 				} else {
@@ -431,12 +450,10 @@ func (s *service) nodeProbe(ctx context.Context) error {
 					if err != nil {
 						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 					}
-
-					sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+					err = s.getSDCName(opts.SdcGUID, systemID)
 					if err != nil {
-						return status.Errorf(codes.FailedPrecondition, "%s", err)
+						return err
 					}
-					Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 				}
 			} else {
 				// case2: if IsSdcRenameEnabled=true and prefix not given then set worker_node_name for sdc name.
@@ -448,12 +465,10 @@ func (s *service) nodeProbe(ctx context.Context) error {
 					if err != nil {
 						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 					}
-
-					sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+					err = s.getSDCName(opts.SdcGUID, systemID)
 					if err != nil {
-						return status.Errorf(codes.FailedPrecondition, "%s", err)
+						return err
 					}
-					Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 				}
 			}
 		} else {
@@ -466,26 +481,22 @@ func (s *service) nodeProbe(ctx context.Context) error {
 				if err != nil {
 					return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 				}
-
-				sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+				err = s.getSDCName(opts.SdcGUID, systemID)
 				if err != nil {
-					return status.Errorf(codes.FailedPrecondition, "%s", err)
+					return err
 				}
-				Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 			}
 		}
 	}
+	return nil
+}
 
-	// get all the system names and IDs.
-	s.getSystemName(ctx, connectedSystemID)
-
-	// make sure privDir is pre-created
-	if _, err := mkdir(s.privDir); err != nil {
-		return status.Errorf(codes.Internal,
-			"plugin private dir: %s creation error: %s",
-			s.privDir, err.Error())
+func (s *service) getSDCName(sdcGUID string, systemID string) error {
+	sdc, err := s.systems[systemID].FindSdc("SdcGUID", sdcGUID)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, "%s", err)
 	}
-
+	Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 	return nil
 }
 
