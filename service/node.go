@@ -431,6 +431,12 @@ func (s *service) nodeProbe(ctx context.Context) error {
 					if err != nil {
 						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 					}
+
+					sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+					if err != nil {
+						return status.Errorf(codes.FailedPrecondition, "%s", err)
+					}
+					Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 				}
 			} else {
 				// case2: if IsSdcRenameEnabled=true and prefix not given then set worker_node_name for sdc name.
@@ -442,6 +448,12 @@ func (s *service) nodeProbe(ctx context.Context) error {
 					if err != nil {
 						return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 					}
+
+					sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+					if err != nil {
+						return status.Errorf(codes.FailedPrecondition, "%s", err)
+					}
+					Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 				}
 			}
 		} else {
@@ -454,10 +466,13 @@ func (s *service) nodeProbe(ctx context.Context) error {
 				if err != nil {
 					return status.Errorf(codes.FailedPrecondition, "Failed to rename SDC: %s", err)
 				}
+
+				sdc, err = s.systems[systemID].FindSdc("SdcGUID", s.opts.SdcGUID)
+				if err != nil {
+					return status.Errorf(codes.FailedPrecondition, "%s", err)
+				}
+				Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 			}
-		}
-		if len(sdc.Sdc.Name) > 0 {
-			Log.Infof("SDC name set to: %s.", sdc.Sdc.Name)
 		}
 	}
 
