@@ -40,5 +40,7 @@ const (
 	//to true in the cluster. If the feature gate is on, this should be enabled. Otherwise, this should be set to false.
 	EnvIsHealthMonitorEnabled = "X_CSI_HEALTH_MONITOR_ENABLED"
 
+	// EnvIsApproveSDCEnabled is the name of the environment variable that specifies if the SDC approval is to be
+	// carried out or not.
 	EnvIsApproveSDCEnabled = "X_CSI_APPROVE_SDC_ENABLED"
 )
