@@ -3264,6 +3264,26 @@ func (f *feature) iCallSetQoSParameters(systemID string, sdcID string, bandwidth
 	return nil
 }
 
+func (f *feature) iCallRenameSDC(renameEnabled string, prefix string) error {
+	if renameEnabled == "true" {
+		f.service.opts.IsSdcRenameEnabled = true
+	}
+	f.service.opts.SdcPrefix = prefix
+	f.err = f.service.renameSDC(f.service.opts)
+	if f.err != nil {
+		fmt.Printf("error in renaming SDC: %s\n", f.err.Error())
+	}
+	return nil
+}
+
+func (f *feature) iCallGetSDCName(sdcGUID string, systemID string) error {
+	f.err = f.service.getSDCName(sdcGUID, systemID)
+	if f.err != nil {
+		fmt.Printf("error in getting SDC name: %s\n", f.err.Error())
+	}
+	return nil
+}
+
 func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a VxFlexOS service$`, f.aVxFlexOSService)
@@ -3419,6 +3439,8 @@ func FeatureContext(s *godog.ScenarioContext) {
 	s.Step(`^I call getProtectionDomainIDFromName "([^"]*)" "([^"]*)"$`, f.iCallgetProtectionDomainIDFromName)
 	s.Step(`^I call getArrayInstallationID "([^"]*)"$`, f.iCallgetArrayInstallationID)
 	s.Step(`^I call setQoSParameters with systemID "([^"]*)" sdcID "([^"]*)" bandwidthLimit "([^"]*)" iopsLimit "([^"]*)" volumeName "([^"]*)" csiVolID "([^"]*)" nodeID "([^"]*)"$`, f.iCallSetQoSParameters)
+	s.Step(`^I call renameSDC with renameEnabled "([^"]*)" prefix "([^"]*)"$`, f.iCallRenameSDC)
+	s.Step(`^I call getSDCName with sdcGUID "([^"]*)" systemID "([^"]*)"$`, f.iCallGetSDCName)
 
 	s.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		if f.server != nil {
