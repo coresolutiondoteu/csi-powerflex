@@ -133,6 +133,7 @@ type Opts struct {
 	EnableListVolumesSnapshots bool   // when listing volumes, include snapshots and volumes
 	AllowRWOMultiPodAccess     bool   // allow multiple pods to access a RWO volume on the same node
 	IsHealthMonitorEnabled     bool   // allow driver to make use of the alpha feature gate, CSIVolumeHealth
+	IsApproveSDCEnabled        bool
 }
 
 type service struct {
@@ -321,6 +322,7 @@ func (s *service) BeforeServe(
 			"mode":                   s.mode,
 			"allowRWOMultiPodAccess": s.opts.AllowRWOMultiPodAccess,
 			"IsHealthMonitorEnabled": s.opts.IsHealthMonitorEnabled,
+			"IsApproveSDCEnabled":    s.opts.IsApproveSDCEnabled,
 		}
 
 		Log.WithFields(fields).Infof("configured %s", Name)
@@ -373,6 +375,13 @@ func (s *service) BeforeServe(
 		}
 	} else {
 		opts.IsHealthMonitorEnabled = false
+	}
+	if approveSDC, ok := csictx.LookupEnv(ctx, EnvIsApproveSDCEnabled); ok {
+		if approveSDC == "true" {
+			opts.IsApproveSDCEnabled = true
+		}
+	} else {
+		opts.IsApproveSDCEnabled = false
 	}
 	if s.privDir == "" {
 		s.privDir = defaultPrivDir

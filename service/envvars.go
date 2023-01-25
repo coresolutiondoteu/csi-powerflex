@@ -39,4 +39,6 @@ const (
 	//the driver should be reporting on volume condition. To do so, requires the alpha feature gate CSIVolumeHealth set
 	//to true in the cluster. If the feature gate is on, this should be enabled. Otherwise, this should be set to false.
 	EnvIsHealthMonitorEnabled = "X_CSI_HEALTH_MONITOR_ENABLED"
+
+	EnvIsApproveSDCEnabled = "X_CSI_APPROVE_SDC_ENABLED"
 )
